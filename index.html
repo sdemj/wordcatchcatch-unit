@@ -1,0 +1,2878 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Word Catch! Catch!</title>
+  <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+  <style>
+@font-face {
+  font-family: 'Hakgyoansim_BoardmarkerR';
+  src: url('fonts/Hakgyoansim_BoardmarkerR.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hakgyoansim_PosterB';
+  src: url('fonts/Hakgyoansim_PosterB.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+body, button, input, textarea {
+  font-family: 'Hakgyoansim_BoardmarkerR', 'Nanum Gothic', sans-serif;
+}
+
+.intro-title, .challenge-title, .selection-heading, #modal-title,
+.word-box h2, #round-display, .start-btn, .intro-how-btn, .next-btn,
+.menu-box-btn, .modal-button, #modal-button {
+  font-family: 'Hakgyoansim_PosterB', 'Nanum Gothic', sans-serif;
+}
+
+/* [수정] 인트로~소분류 선택 화면, 실제 게임 화면(game-wrapper), 팝업(modal-overlay,
+   confetti-container)까지 전부 이 하나의 고정 크기 캔버스(#app-stage) 안에 넣는다.
+   pick the word와 동일하게, 창 크기/배율이 바뀌면 이 캔버스 하나만 통째로 커지고
+   작아지므로 모든 화면·팝업이 항상 같은 비율로 맞춰진다. */
+#app-stage {
+  width: 1200px;
+  height: 800px;
+  position: fixed;
+  top: calc(50% + 20px);
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  transform-origin: center center;
+  box-sizing: border-box;
+  z-index: 40;
+}
+
+#title-screen {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: #eaf3fb;
+}
+
+.title-card {
+  position: relative;
+  height: min(80%, 720px);
+  aspect-ratio: 2752 / 1536; /* 0.jpg 원본 비율 */
+  max-width: 92%;
+  border-radius: 40px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+  border: 6px solid #ffffff;
+  box-sizing: border-box;
+}
+
+.full-title-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* 이미지가 화면에 여백 없이 꽉 차도록 설정 */
+  z-index: 1;
+}
+
+.title-btn-group {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 25px;
+  margin-bottom: 25px;
+  justify-content: center;
+}
+
+/* 2. 하얀색으로 빛나고 깜빡이는 학습 목표 스타일 */
+.title-goal-text {
+position: relative;
+  z-index: 2;
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 800;
+  
+  /* [핵심] 밝은 배경 대비를 위한 반투명 어두운 캡슐 배경 및 테두리 지정 */
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px); /* 뒤 배경 은은하게 블러 처리 */
+  padding: 10px 24px;
+  border-radius: 30px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+
+  margin-bottom: 20px;
+  text-align: center;
+  word-break: keep-all;
+  animation: glowBlink 2s infinite ease-in-out;
+}
+
+
+#intro-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: #eaf3fb;
+}
+
+.intro-card {
+  width: min(92%, 1400px);
+  max-height: 94%;
+  overflow-y: auto;
+  padding: 30px;
+  background:
+    radial-gradient(circle at top left, #ffe0f3 0%, transparent 30%),
+    radial-gradient(circle at top right, #d6f0ff 0%, transparent 30%),
+    rgba(255,255,255,0.85);
+
+  backdrop-filter: blur(10px);
+  border-radius: 40px;
+  border: 6px solid #ffffff;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.08), 0 5px 0 #cfe9ff;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+
+  position: relative;
+  box-sizing: border-box;
+}
+
+@keyframes floatStar {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+  100% { transform: translateY(0px); }
+}
+
+    .intro-title {
+      color: #1a2b4a;
+      font-size: 3.5rem;
+      font-weight: 900;
+      letter-spacing: 1.25px;
+      text-align: center;
+    }
+
+.intro-box {
+  width: 100%;
+  text-align: left;
+
+  background: linear-gradient(
+    180deg,
+    #fefeff 0%,
+    #eef8ff 100%
+  );
+
+  padding: 28px 30px;
+
+  border-radius: 28px;
+
+  box-sizing: border-box;
+
+  border: 4px solid #9ed8ff;
+
+  box-shadow:
+    0 8px 0 #b8e4ff,
+    0 15px 25px rgba(0,0,0,0.06);
+
+  position: relative;
+
+  transition: transform 0.2s ease;
+}
+
+.intro-box:hover {
+  transform: translateY(-4px);
+}
+
+.intro-box h3 {
+  margin: 0 0 18px 0;
+
+  font-size: 1.8rem;
+  font-weight: 900;
+
+  color: #1a8fe3;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  border-bottom: 3px dashed #b5deff;
+
+  padding-bottom: 12px;
+}
+
+.intro-box p,
+.intro-box ul {
+  margin: 0;
+
+  font-size: 1.5rem;
+
+  line-height: 2;
+
+  color: #4a5568;
+}
+
+.intro-box ul {
+  list-style: none;
+  padding-left: 0;
+  counter-reset: intro-step;
+}
+
+.intro-box li {
+  position: relative;
+  padding-left: 34px;
+  margin-bottom: 10px;
+}
+
+.intro-box li::before {
+  counter-increment: intro-step;
+  content: counter(intro-step) ".";
+
+  position: absolute;
+  left: 0;
+  top: 1px;
+  font-weight: 900;
+  color: #ff6b9d;
+}
+
+.intro-box b {
+  color: #ff6b9d;
+}
+    .start-btn {
+      background: linear-gradient(to bottom, #4fc3f7, #0288d1);
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      font-size: 1.5rem;
+      font-weight: 900;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 6px 0 #01579b, 0 10px 15px rgba(0,0,0,0.2);
+      transition: all 0.1s;
+      letter-spacing: 1px;
+      margin-top: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+.intro-how-btn {
+  background: linear-gradient(to bottom, #ff9a9e, #ff6b81) !important;
+  color: white !important;
+  border: none !important;
+  padding: 15px 40px;
+  font-size: 1.5rem;
+  font-weight: 900;
+  border-radius: 50px;
+  cursor: pointer;
+  /* 핑크색 버튼과 어울리는 진한 붉은색 그림자 지정 */
+  box-shadow: 0 6px 0 #d63031, 0 10px 15px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.1s;
+  letter-spacing: 1px;
+  margin-top: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 버튼을 누르거나 클릭했을 때 기존 파란 그림자가 나오는 것을 방지 */
+.intro-how-btn:active,
+.intro-how-btn:focus {
+  box-shadow: 0 2px 0 #d63031, 0 5px 10px rgba(0, 0, 0, 0.2) !important;
+  outline: none;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 25px;
+  border: 10px solid #ff9a9e;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 40px;
+  max-width: 90vw;
+  width: auto;
+  box-sizing: border-box;
+}
+
+#modal-title {
+  margin: 0 0 10px 0;
+  font-size: 2.5rem;
+}
+
+@keyframes sparkle {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.3);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+    .start-btn:hover {
+      transform: translateY(2px);
+      box-shadow: 0 4px 0 #01579b, 0 8px 10px rgba(0,0,0,0.15);
+    }
+    .start-btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #01579b, 0 4px 5px rgba(0,0,0,0.1);
+    }
+
+
+    .header-container {
+      width: 95% !important;
+      max-width: 1200px;
+      display: none;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin: clamp(8px, 1.5vh, 19px) auto clamp(10px, 2vh, 22px);
+    }
+
+    /* [수정] 반짝이는 그라데이션 애니메이션 박스 제거, 단순한 색상 텍스트로 변경 */
+    .challenge-title {
+      color: #ff6f91;
+      font-size: clamp(2.8rem, 5.6vw, 4rem);
+      font-weight: 900;
+      -webkit-text-stroke: 3px white;
+      paint-order: stroke fill;
+      text-shadow:
+        -2px -2px 0 #fff, 2px -2px 0 #fff,
+        -2px 2px 0 #fff, 2px 2px 0 #fff,
+        0 4px 4px rgba(0,0,0,0.15);
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+
+    #round-display.round-badge {
+      width: 210px;
+      background: #3592DE;
+      color: #fff;
+      font-weight: 800;
+      font-size: 0.82rem;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    #round-display .current-idx,
+    #round-display .total-idx {
+      font-size: inherit;
+      font-weight: inherit;
+      color: inherit;
+    }
+
+    .timer-circle-box {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+
+    /* [추가] 라운드 타이머를 라운드 표시보다 더 눈에 띄게 강조: word-box 상단에 크게 배치 */
+    .timer-circle-box.timer-prominent {
+      width: clamp(80px, 9vw, 108px);
+      height: clamp(80px, 9vw, 108px);
+      margin: 0 auto 4px;
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,0.15));
+    }
+    .timer-circle-box.timer-prominent #timer-text {
+      font-size: clamp(1.05rem, 1.7vw, 1.35rem);
+    }
+
+    .main-game-container {
+      display: none;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: stretch;
+      gap: 14px;
+      margin-top: 2px;
+width: 95% !important;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.left-panel .word-panel-card {
+  flex: 1;
+  width: 100%;
+}
+
+.btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+}
+    .buzzer-btn {
+      width: 65px;
+      height: 65px;
+      border-radius: 50%;
+      border: none;
+      font-size: 1.1rem;
+      font-weight: 900;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.08s ease-out;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+     box-shadow: 0 6px 0 #d04f66, 0 10px 15px rgba(0,0,0,0.2);
+    }
+   
+.buzzer-btn::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 15%;
+      width: 70%;
+      height: 30%;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.4), rgba(255,255,255,0));
+      border-radius: 50% / 100% 100% 0% 0%;
+      pointer-events: none;
+    }
+
+.buzzer-btn:hover {
+      transform: translateY(2px);
+      box-shadow: 0 4px 0 #d04f66, 0 8px 10px rgba(0,0,0,0.15);
+    }
+
+.buzzer-btn:active {
+      transform: translateY(6px);
+      box-shadow: 0 0px 0 #d04f66, 0 4px 5px rgba(0, 0, 0, 0.1);
+    }
+
+.hint-btn {
+      background: linear-gradient(to bottom, #ffccd5, #ff8a9e); /* 입체감 있는 그라데이션 */
+      color: #fff;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+      border: 3px solid white; /* 일관성을 위한 흰색 테두리 추가 */
+      box-sizing: border-box;
+    }
+
+.how-to-play-btn {
+  width: 210px;
+  padding: 12px;
+  background: #ffffff;
+  border: 3px solid #0288d1;
+  border-radius: 15px;
+  color: #0288d1;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+.how-to-play-btn:hover { background: #0288d1; color: white; }
+   
+.timer-circle-box svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+      position: absolute; /* 글자와 레이어가 겹치도록 절대 위치 설정 */
+      top: 0;
+      left: 0;
+    }
+
+.timer-circle-box circle {
+      fill: white;
+      stroke-width: 10;
+      cx: 50;
+      cy: 50;
+      r: 40;
+    }
+
+.circle-bg { stroke: #eee; }
+    .circle-progress {
+      stroke: #ef5350;
+      stroke-dasharray: 251.2;
+      stroke-dashoffset: 0;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.1s linear;
+      fill: none !important;
+    }
+
+#timer-text {
+      position: absolute;  /* [수정] 부모 박스를 기준으로 절대 배치하여 PC/브라우저에서도 항상 정중앙 고정 */
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;   /* 숫자가 더 잘 보이도록 두께 조정 */
+      font-size: 1.25rem; /* 시인성을 위해 크기 살짝 확대 */
+      color: #333;
+      line-height: 1;     /* 세로 정렬 오차 방지 */
+      text-align: center;
+      user-select: none;
+      z-index: 2;         /* 원형 그래프보다 항상 위에 보이도록 설정 */
+      box-sizing: border-box;
+    }
+    .word-box {
+      width: 210px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+text-align: center;
+      background-color: #ffffff;
+      border: 5px dashed #ffab91;
+      border-radius: 31px;
+      padding: 13px 10px;
+      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.05);
+      box-sizing: border-box;
+align-items: center;
+    }
+
+    .word-box h2 {
+      margin: 0 0 12px 0;
+      font-size: 1.3rem;
+      color: #ff7043;
+      white-space: nowrap;
+    }
+
+    #word-list {
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+   
+    .word-box .word-item {
+      display: block;
+      padding: 7px 10px;
+      margin: 5px 0;
+      border-radius: 25px;
+      font-size: 1.25rem;
+      background-color: #fff9c4;
+      border: 4px solid #fff176;
+      font-weight: 900;
+      color: #555;
+    }
+
+    .word-box .word-found {
+      color: #2e7d32;
+      border-color: #eee;
+      background-color: #fafafa;
+    }
+
+    /* [추가] 찾은 단어 옆에 뜻을 보여줄 때는 뜻 글자도 같은 초록색으로 또렷하게 표시한다 */
+    .word-box .word-found .word-meaning {
+      color: #2e7d32;
+      font-size: 0.8em;
+      font-weight: 700;
+      margin-left: 4px;
+    }
+
+#modal-overlay {
+  position: absolute;  /* 👈 #app-stage 캔버스 기준으로 꽉 채움 (게임 화면과 같은 배율로 스케일됨) */
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(30, 40, 65, 0.68);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;       /* 👈 게임 화면의 그 어떤 요소보다 위에 오도록 설정 */
+  /* [수정] #app-stage 전체를 덮으므로 game-wrapper의 둥근 테두리 바깥 곡선(24px)에 맞춰
+     모서리를 둥글게 해서, 직각 모서리가 테두리 밖으로 삐져나오지 않게 한다 */
+  border-radius: 24px;
+}
+
+/* [추가] 라운드 하나를 클리어했을 때(다음 라운드로 이어짐)는 기존처럼 어두운 반투명
+   배경을 유지하되, 게임이 완전히 끝나는 순간(타임오버/미션 컴플리트)은 다른 카드들
+   (intro-card/selection-card)과 같은 파스텔 그라데이션 배경으로 바꿔서 "끝났다"는
+   느낌을 어두운 딤 처리 대신 게임 전체 톤에 어울리게 표현한다 */
+#modal-overlay.overlay-game-end {
+  background:
+    radial-gradient(circle at top left, #ffe0f3 0%, transparent 30%),
+    radial-gradient(circle at top right, #d6f0ff 0%, transparent 30%),
+    rgba(240, 250, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* [추가] 타임오버/미션 컴플리트 팝업은 한 라운드 클리어 팝업보다 더 크게 */
+.modal-content.modal-big {
+  max-width: 820px;
+  padding: 45px 45px;
+}
+
+/* [추가] 실제 게임 화면에서 홈/뒤로가기를 누르면 뜨는 종료 확인 팝업 */
+#exit-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(30, 40, 65, 0.68);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  /* [수정] game-wrapper의 둥근 흰 테두리(반경 24px, 두께 6px) 안쪽 곡선에 맞춰 모서리를 둥글게 해서
+     어두운 배경이 테두리 모서리 밖으로 삐져나오지 않게 한다 */
+  border-radius: 18px;
+}
+.exit-confirm-img {
+  width: 150px;
+  height: auto;
+  margin: 0 auto;
+  display: block;
+}
+
+.result-stats {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.result-stat-tile {
+  background: #f0faff;
+  border: 3px solid #cfe9ff;
+  border-radius: 18px;
+  padding: 14px 20px;
+  min-width: 92px;
+}
+
+.result-stat-num {
+  font-size: 1.7rem;
+  font-weight: 900;
+  color: #0288d1;
+  white-space: nowrap;
+}
+
+.result-stat-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #888;
+  margin-top: 2px;
+}
+
+.modal-content {
+  /* 1. 화면 정중앙 배치를 위한 절대 위치 설정 */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%); /* 정확히 자신의 절반만큼 끌어올려 정중앙 배치 */
+
+  /* 2. 크기 및 비율 유지 (wrapper가 축소되어도 비율 유지) */
+  width: 90%;       /* 부모 wrapper 너비의 80% 차지 */
+  max-width: 600px; /* 너무 커지는 것 방지 */
+max-height: 85%; /* 👈 #app-stage 기준 (팝업이 캔버스 안에 들어오면서 vh 대신 % 사용) */
+overflow-y: auto;
+  box-sizing: border-box;
+  padding: 30px 25px;
+ background-color: #ffffff;
+  border-radius: 40px;
+  border: 6px solid #ffffff;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.08), 0 5px 0 #cfe9ff; /* 인트로식 하단 블록 그림자 */
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 25px;
+}
+
+.modal-content.modal-wide {
+  max-width: 1080px;
+}
+
+    /* [수정] h3 대신 #modal-title로 좁혀서, 인게임 팝업 안쪽에 같이 들어있는 .intro-box h3
+       ("학습목표:" 줄)까지 이 큰 제목 스타일을 덮어쓰지 않게 한다 */
+    #modal-title { color: #ff7043; font-size: 2.8rem; margin: 0 0 15px; font-weight: 900; text-align: center; }
+
+    /* How to Play 팝업 전용: 인트로 화면의 .intro-card와 완전히 동일한 크기/여백/배경이 되도록
+       모든 값을 명시적으로 덮어쓴다 (기본 .modal-content/.modal-wide 값에 기대면 90%/1080px vs
+       92%/1400px, 패딩 25px vs 30px처럼 미세하게 어긋나서 두 팝업이 살짝 달라 보였다) */
+    .modal-content.modal-help-style {
+      width: min(92%, 1400px);
+      max-width: min(92%, 1400px);
+      max-height: 94%; /* 기본 .modal-content의 85%보다 여유를 둬서 .intro-card와 동일하게 맞춤 */
+      padding: 30px;
+      gap: 20px; /* 기본 .modal-content는 25px — .intro-card(20px)와 맞춰서 높이 여유를 조금 더 확보 */
+      background:
+        radial-gradient(circle at top left, #ffe0f3 0%, transparent 30%),
+        radial-gradient(circle at top right, #d6f0ff 0%, transparent 30%),
+        rgba(255,255,255,0.85);
+      backdrop-filter: blur(10px);
+    }
+    .modal-content.modal-help-style #modal-title {
+      color: #1a2b4a;
+      font-size: 3.5rem;
+      font-weight: 900;
+      letter-spacing: 1.25px;
+    }
+
+    /* [수정] 성공(라운드클리어/미션컴플리트) vs 실패(타임오버) 팝업 색상 구분 - 성공은 초록 대신
+       게임 전체에서 이미 쓰는 파란 톤으로 통일. h3 셀렉터는 #modal-title(id)보다 우선순위가
+       낮아 실제로는 절대 적용되지 않던 죽은 규칙이었어서, #modal-title을 직접 겨냥하도록 고쳤다
+       (id 개수가 같을 땐 클래스가 더 많은 쪽이 이겨서 #modal-title 단독 규칙보다 우선한다). */
+    .modal-content.modal-success {
+      border-color: #42a5f5;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.3), 0 5px 0 #90caf9;
+    }
+    .modal-content.modal-success #modal-title { color: #0277bd; }
+    /* [수정] 실패(타임오버) 팝업도 빨강 대신 분홍 계열로 - 색을 새로 고르지 않고 이 게임
+       전체에서 이미 쓰고 있는 핑크 조합(기본 .modal-content 테두리 #ff9a9e, next-btn/종료확인
+       버튼 그라데이션의 옅은 쪽 #fecfef, 선택 상태 강조색 #ff6b9d)을 그대로 재사용해서
+       클리어 팝업(파랑)과 마찬가지로 게임 전체 톤과 통일감이 생기도록 했다. */
+    .modal-content.modal-fail {
+      border-color: #ff9a9e;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.3), 0 5px 0 #fecfef;
+    }
+    .modal-content.modal-fail #modal-title { color: #ff6b9d; }
+
+    /* [추가] 라운드 클리어 축하 컨페티 효과 */
+    #confetti-container {
+      position: absolute; /* 👈 #app-stage 캔버스 기준으로 꽉 채움 (게임 화면과 같은 배율로 스케일됨) */
+      inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 10000;
+      overflow: hidden;
+    }
+    .confetti-piece {
+      position: absolute;
+      top: -20px;
+      width: 10px;
+      height: 16px;
+      opacity: 0.9;
+      animation: confettiFall linear forwards;
+      border-radius: 2px;
+    }
+    @keyframes confettiFall {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(850px) rotate(540deg); opacity: 0.4; } /* 👈 #app-stage 높이(800px) 기준 낙하 거리 */
+    }
+
+    /* [추가] 최종 미션 성공 화면의 고양이 캐릭터 연출 */
+    .result-cat {
+      text-align: center;
+      animation: catBounce 1.2s ease-in-out infinite;
+    }
+    .result-cat img {
+      width: 150px;
+      height: auto;
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,0.15));
+    }
+    @keyframes catBounce {
+      0%, 100% { transform: translateY(0) rotate(-4deg); }
+      50% { transform: translateY(-10px) rotate(4deg); }
+    }
+   
+    .next-btn {
+      background: linear-gradient(to bottom, #ff9a9e, #fecfef);
+      color: white;
+      border: none;
+      padding: 15px 45px;
+      font-size: 1.6rem;
+      font-weight: bold;
+      border-radius: 60px;
+      cursor: pointer;
+      box-shadow: 0 7.5px 0 #e08588;
+      transition: all 0.2s;
+    }
+    .next-btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 3.5px 0 #e08588;
+    }
+
+    #grid {
+      display: inline-grid;
+      gap: 7.5px;
+      background-color: #e1f5fe;
+      padding: 15px;
+      border-radius: 25px;
+      border: 6px solid #81d4fa;
+      box-shadow: 0 12.5px 0 #4fc3f7;
+    }
+
+    .cell {
+      width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 15px;
+      user-select: none;
+      cursor: pointer;
+      background-color: #fff;
+      transition: transform 0.1s, background-color 0.2s;
+      box-shadow: inset 0 -4px 0 rgba(0,0,0,0.05);
+    }
+    /* [추가] 키보드(Tab)로 격자 칸에 초점이 왔을 때 눈에 띄게 표시 - 마우스 클릭 시엔 안 보이도록 :focus-visible 사용 */
+    .cell:focus-visible {
+      outline: 3px solid #0288d1;
+      outline-offset: 2px;
+      z-index: 6;
+    }
+    .cell span { font-size: 1.6rem; font-weight: 800; color: #444; }
+   
+    .cell.temp { background-color: #80deea !important; transform: scale(1.1); color: white !important; z-index: 5; position: relative;}
+   
+    .cell.found { color: white; box-shadow: none; }
+    .cell.found-clr-0 { background-color: #aed581; }
+    .cell.found-clr-1 { background-color: #ff8a65; }
+    .cell.found-clr-2 { background-color: #4fc3f7; }
+    .cell.found-clr-3 { background-color: #ce93d8; }
+    .cell.found-clr-4 { background-color: #ffd54f; }
+
+    @keyframes hintPulse {
+      0% { background-color: #ffffff; transform: scale(1); }
+      50% { background-color: #ffeb3b; transform: scale(1.08); box-shadow: 0 0 12px #ffeb3b; }
+      100% { background-color: #ffffff; transform: scale(1); }
+    }
+    .cell.hint-active {
+      animation: hintPulse 1s infinite ease-in-out;
+      z-index: 4;
+      position: relative;
+    }
+
+    #message { margin-top: 19px; height: 38px; font-size: 1.5rem; font-weight: bold; }
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  background-color: #f0faff;
+}
+   
+#game-wrapper {
+  /* 크기·중앙정렬·배율은 이제 부모 #app-stage가 담당 - 여기서는 캔버스에 꽉 채우기만 한다 */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: none; /* [수정] 다른 선택 화면들과 형제로 합쳐지면서, 안 쓸 땐 완전히 숨겨야
+                     클릭을 가로채지 않는다 (JS가 flex로 토글) */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  /* [추가] title-card/intro-card 등 다른 화면들과 같은 흰 테두리 카드 모양으로 통일 */
+  background: #eaf3fb;
+  border: 6px solid #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+}
+   
+.word-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+justify-content: flex-start;
+  gap: 10px; /* 박스와 버튼 사이 간격 */
+  width: 100%;
+}
+
+.word-panel-card {
+  background-color: #f4fbfe;
+  padding: 15px;
+  border-radius: 25px;
+  border: 6px solid #cceaf9;
+  box-shadow: 0 12.5px 0 #bfe2f5;
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.how-to-play-btn {
+  width: 210px;
+  padding: 12px;
+  background: #ffffff;
+  border: 3px solid #0288d1;
+  border-radius: 15px;
+  color: #0288d1;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+.how-to-play-btn:hover { background: #0288d1; color: white; }
+
+    .center-feedback {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.5);
+      font-size: 4rem;
+      font-weight: 900;
+      z-index: 200;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-shadow: 3px 3px 0px #fff, -3px -3px 0px #fff, 3px -3px 0px #fff, -3px 3px 0px #fff, 0px 5px 10px rgba(0,0,0,0.2);
+    }
+    .center-feedback.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.2);
+    }
+
+    @keyframes timerAlert {
+      0% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 0px #ef5350); }
+      20% { transform: scale(1.08) rotate(-3deg); filter: drop-shadow(0 0 8px #ef5350); }
+      40% { transform: scale(1.08) rotate(3deg); }
+      60% { transform: scale(1.08) rotate(-3deg); }
+      80% { transform: scale(1.08) rotate(3deg); }
+      100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 0px #ef5350); }
+    }
+   
+    .timer-danger {
+      animation: timerAlert 0.4s infinite ease-in-out;
+    }
+    .timer-danger #timer-text {
+      color: #ef5350 !important;
+    }
+    .timer-danger .circle-progress {
+      stroke: #d32f2f !important;
+    }
+
+    /* ==========================================================================
+       [추가] 카테고리 및 소분류 선택 단계 관련 신규 UI 스타일
+       ========================================================================== */
+    #category-container, #subcategory-container {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      background: #eaf3fb;
+      display: none; /* JS가 flex로 토글 */
+    }
+
+    .selection-card {
+      width: min(92%, 1400px);
+      max-height: 88%;
+      overflow-y: auto;
+      margin: auto;
+      padding: 28px 32px;
+      background: radial-gradient(circle at top left, #ffe0f3 0%, transparent 30%), radial-gradient(circle at top right, #d6f0ff 0%, transparent 30%), rgba(255,255,255,0.85);
+      backdrop-filter: blur(10px);
+      border-radius: 40px;
+      border: 6px solid #ffffff;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.08), 0 5px 0 #cfe9ff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      box-sizing: border-box;
+      position: relative;
+    }
+
+    /* [수정] 상단 네비게이션: pick the word 게임과 동일한 glass-pill 스타일/아이콘으로 통일 */
+    .glass-pill {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 14px rgba(100, 120, 180, 0.15);
+    }
+    #nav-left-group, #nav-right-group {
+      position: fixed;
+      top: 18px;
+      z-index: 1000000;
+      display: flex;
+      gap: 10px;
+    }
+    #nav-left-group { left: 18px; transform-origin: top left; }
+    #nav-right-group { right: 18px; transform-origin: top right; }
+    .nav-icon-btn {
+      width: 52px;
+      height: 52px;
+      border-radius: 9999px;
+      border: 2px solid rgba(255,255,255,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 22px;
+      color: #3b3a66;
+      flex-shrink: 0;
+      transition: transform 0.15s ease;
+    }
+    .nav-icon-btn:hover { transform: translateY(-2px); }
+    .nav-icon-btn:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
+
+    /* [추가] 상단 물음표(?)로 여는 인게임 How to Play 팝업 전용 우측 상단 닫기(X) 버튼.
+       라운드클리어/게임오버 등 다른 팝업에서는 기존 하단 버튼을 그대로 쓰고 X는 숨긴다. */
+    .modal-close-x {
+      display: none;
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      z-index: 10;
+    }
+    .modal-content.modal-help-style .modal-close-x { display: flex; }
+    .modal-content.modal-help-style #modal-button { display: none; }
+
+    /* [추가] intro-container(How to Play 화면)도 상단 물음표(?) 버튼으로 열렸을 때는
+       위와 동일하게 하단 버튼 대신 우측 상단 X 버튼만 쓴다. 타이틀 화면 자체의
+       "How to Play" 버튼으로 열었을 때는 기존 닫기/Game Start 버튼을 그대로 유지. */
+    .intro-close-x {
+      display: none;
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      z-index: 10;
+    }
+    .intro-card.via-nav-htp .intro-close-x { display: flex; }
+    .intro-card.via-nav-htp .title-btn-group { display: none; }
+
+    .selection-heading {
+      font-size: 2.8rem;
+      font-weight: 900;
+      color: #1a8fe3;
+      margin: 0;
+      text-align: center;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .grid-menu {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(170px, 260px));
+      gap: 18px;
+      justify-content: center;
+      margin: 6px 0;
+    }
+    /* 소분류가 2개뿐인 주제는 2열로 줄여서 버튼이 가운데 오게 한다 */
+    .grid-menu.cols-2 { grid-template-columns: repeat(2, minmax(170px, 260px)); }
+
+    .menu-box-btn {
+      width: 100%;
+      height: 120px;
+      min-width: 0;
+      overflow-wrap: break-word;
+      background: linear-gradient(180deg, #fefeff 0%, #eef8ff 100%);
+      border: 4px solid #9ed8ff;
+      border-radius: 24px;
+      box-shadow: 0 6px 0 #b8e4ff, 0 10px 15px rgba(0,0,0,0.05);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      font-weight: 900;
+      color: #4a5568;
+      transition: all 0.15s ease;
+      padding: 14px;
+      box-sizing: border-box;
+      text-align: center;
+      word-break: keep-all;
+    }
+
+    .menu-box-btn span {
+      font-size: 1rem;
+      color: #718096;
+      font-weight: normal;
+      margin-top: 4px;
+    }
+
+    .menu-box-btn[data-tooltip] {
+      position: relative;
+    }
+    .menu-box-btn[data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 14px);
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      background: #ffffff;
+      color: #4a5568;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      padding: 10px 14px;
+      border-radius: 14px;
+      border: 3px solid #9ed8ff;
+      box-shadow: 0 6px 0 #b8e4ff, 0 10px 18px rgba(0,0,0,0.12);
+      white-space: normal;
+      width: max-content;
+      max-width: 220px;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      z-index: 20;
+    }
+    .menu-box-btn[data-tooltip]::before {
+      content: '';
+      position: absolute;
+      bottom: calc(100% + 5px);
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 8px;
+      border-style: solid;
+      border-color: #9ed8ff transparent transparent transparent;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .menu-box-btn[data-tooltip]:hover::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .menu-box-btn[data-tooltip]:hover::before {
+      opacity: 1;
+    }
+
+    .menu-box-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 0 #b8e4ff, 0 12px 18px rgba(0,0,0,0.08);
+    }
+
+    /* 선택/활성화 토글 상태 */
+    .menu-box-btn.active {
+      background: linear-gradient(180deg, #fff3f5 0%, #ffcbd1 100%) !important;
+      border-color: #ff6b9d !important;
+      box-shadow: 0 4px 0 #e05285 !important;
+      color: #d81b60 !important;
+      transform: translateY(2px);
+    }
+    .menu-box-btn.active span {
+      color: #e91e63;
+    }
+
+    /* 비활성화 테마 (샘플 외 카테고리용 흐린 처리) */
+    .menu-box-btn.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background: #f7fafc;
+      border-color: #e2e8f0;
+      box-shadow: 0 4px 0 #cbd5e0;
+      color: #a0aec0;
+    }
+    .menu-box-btn.disabled span { color: #cbd5e0; }
+    .menu-box-btn.disabled:hover { transform: none; box-shadow: 0 4px 0 #cbd5e0; }
+
+    .status-counter {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #ff6b9d;
+      background: #fff0f3;
+      padding: 10px 28px;
+      border-radius: 30px;
+      border: 2px dashed #ffcbd1;
+    }
+
+/* 대분류 전체 버튼 전용 와이드 스타일 */
+.menu-box-btn.full-width {
+  width: 100%;
+  max-width: 816px;  /* 하단 소분류 3개 배치 너비(260px*3 + 18px*2 gap = 816px)와 정확히 일치 */
+  height: 96px;
+background: linear-gradient(180deg, #fefeff 0%, #eef8ff 100%);  border: 3px solid #b3e5fc;
+border: 4px solid #9ed8ff;
+  border-radius: 24px;
+color: #4a5568;
+  font-size: 1.4rem;
+  font-weight: 900;
+  cursor: pointer;
+box-shadow: 0 6px 0 #b8e4ff, 0 10px 15px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin: 0 auto 0px auto; /* 하단 소분류 버튼들과의 간격 확보 */
+box-sizing: border-box;
+  transition: all 0.1s;
+}
+
+.menu-box-btn.full-width:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 #b8e4ff, 0 12px 18px rgba(0,0,0,0.08);
+}
+
+.menu-box-btn.full-width.active {
+  background: linear-gradient(180deg, #fff3f5 0%, #ffcbd1 100%) !important;
+  border-color: #ff6b9d !important;
+  box-shadow: 0 4px 0 #e05285 !important;
+  color: #d81b60 !important;
+  transform: translateY(2px);
+}
+
+.menu-box-btn.full-width span {
+  font-size: 1.1rem;
+  color: #718096;
+  font-weight: normal;
+}
+
+.menu-box-btn.full-width.active span {
+  color: #e91e63;
+}
+
+    /* 공통 상단바와 함께: 무대 전체에 깔던 하늘색 바탕을 걷어 낸다.
+       흰 카드만 흐린 배경 위에 떠 보이도록 (박스가 두 겹으로 보이지 않게) */
+    #app-stage.tn-bare #title-screen,
+    #app-stage.tn-bare #intro-container,
+    #app-stage.tn-bare #category-container,
+    #app-stage.tn-bare #subcategory-container { background: transparent; }
+    /* 흰 카드가 무대(1200×800)를 꽉 채우게 — 무대 안 위아래·좌우 여백을 없애서
+       다른 게임의 카드와 같은 높이로 보이게 한다 (게임 화면은 원래 무대를 꽉 채운다) */
+    #app-stage.tn-bare .title-card { width: 100%; height: 100%; max-width: none; aspect-ratio: auto; }
+    #app-stage.tn-bare .intro-card,
+    #app-stage.tn-bare .selection-card { width: 100%; height: 100%; max-height: none; margin: 0; justify-content: center; }
+    /* 카드가 커진 만큼 주제 선택 화면의 제목·버튼도 약 1.3배로 */
+    #app-stage.tn-bare .selection-card { gap: 22px; }
+    #app-stage.tn-bare .selection-heading { font-size: 3.5rem; }
+    #app-stage.tn-bare .grid-menu { grid-template-columns: repeat(3, 340px); gap: 24px; }
+    #app-stage.tn-bare .grid-menu.cols-2 { grid-template-columns: repeat(2, 340px); }
+    #app-stage.tn-bare .menu-box-btn { height: 156px; font-size: 1.75rem; border-radius: 30px; }
+    #app-stage.tn-bare .menu-box-btn span { font-size: 1.3rem; margin-top: 6px; }
+    #app-stage.tn-bare .menu-box-btn.full-width { max-width: 1068px; height: 120px; font-size: 1.85rem; }
+    #app-stage.tn-bare .menu-box-btn.full-width span { font-size: 1.3rem; }
+    #app-stage.tn-bare .status-counter { font-size: 1.9rem; padding: 12px 36px; }
+    #app-stage.tn-bare .selection-card .start-btn { font-size: 1.95rem; padding: 19px 54px; }
+
+    /* 단원 목록 화면: 학년은 4개(한 줄), 단원은 학년마다 최대 8개라 4열로 놓는다 */
+    .grid-menu.cols-4,
+    #app-stage.tn-bare .grid-menu.cols-4 { grid-template-columns: repeat(4, 260px); gap: 22px; }
+    #app-stage.tn-bare .grid-menu.cols-4 .menu-box-btn { height: 140px; font-size: 1.7rem; }
+    #app-stage.tn-bare .grid-menu.cols-4 .menu-box-btn span { font-size: 1.1rem; line-height: 1.25; }
+
+    /* 지금 단원 표시 (타이틀 화면) */
+    .unit-badge {
+      position: relative;
+      z-index: 2;
+      margin-bottom: 14px;
+      padding: 8px 28px;
+      border-radius: 999px;
+      border: 3px solid #9ed8ff;
+      background: rgba(255,255,255,0.94);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+      font-family: 'Hakgyoansim_PosterB', 'Nanum Gothic', sans-serif;
+      font-size: 1.5rem;
+      color: #1a8fe3;
+    }
+    .unit-badge[hidden] { display: none; }
+  </style>
+  <link rel="stylesheet" href="topnav.css">
+</head>
+<body>
+
+<!-- [추가] 휴대폰 세로 화면 안내 - 태블릿에는 안 뜨고, 휴대폰 화면 크기에서 세로로 시작했을 때만 뜬다.
+     가로로 돌리면 자동으로 사라지고, "이대로 할래요"를 누르면 세로로도 계속 플레이할 수 있다. -->
+<div id="rotate-overlay" style="display:none;position:fixed;inset:0;z-index:2147483000;background:#eaf3fb;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:36px;text-align:center;">
+    <div style="width:92px;height:148px;border:9px solid #0288d1;border-radius:26px;background:#ffffff;animation:rotateHintWCC 2.6s ease-in-out infinite;"></div>
+    <h2 style="font-family:'Hakgyoansim_PosterB','Nanum Gothic',sans-serif;font-size:24px;color:#1a2b4a;margin:0;">화면을 가로로 돌려 주세요</h2>
+    <p style="font-family:'Hakgyoansim_BoardmarkerR','Nanum Gothic',sans-serif;font-size:16px;color:#4a5568;margin:0;line-height:1.6;">가로로 놓으면 알파벳 퍼즐 판이 커져서<br>훨씬 편하게 할 수 있어요.</p>
+    <button type="button" onclick="dismissRotateOverlay()" style="font-family:'Hakgyoansim_BoardmarkerR','Nanum Gothic',sans-serif;font-size:17px;font-weight:800;color:#fff;background:linear-gradient(to bottom, #ff9a9e, #fecfef);border:none;box-shadow:0 6px 0 #e08588;border-radius:999px;padding:12px 32px;cursor:pointer;">이대로 할래요</button>
+</div>
+<style>
+@keyframes rotateHintWCC {
+    0%, 15% { transform: rotate(0deg); }
+    45%, 60% { transform: rotate(-90deg); }
+    90%, 100% { transform: rotate(0deg); }
+}
+</style>
+<script>
+(function () {
+    var overlay = document.getElementById('rotate-overlay');
+    if (!overlay) return;
+    var dismissed = false;
+    // [수정 10/20] Save the Icecream·Anagram 과 같은 기준으로 맞춘다.
+    // 예전에는 기기 화면 크기(screen.width)로 휴대폰인지 판단해서, PC 창을 세로로 줄였을 때나
+    // screen.width 를 실제 픽셀로 알려 주는 일부 안드로이드·앱 속 브라우저에서는 안 떴다.
+    // 이제 지금 창 모양만 본다: 세로이고 가로 폭이 640px(1280 무대 배율 0.5)보다 좁으면 띄운다.
+    // 아이패드 세로(768px 이상)처럼 충분히 큰 화면에서는 뜨지 않는다.
+    function shouldShow() {
+        var w = window.innerWidth, h = window.innerHeight;
+        return !dismissed && h > w && w < 640;
+    }
+    function updateRotateOverlay() {
+        overlay.style.display = shouldShow() ? 'flex' : 'none';
+    }
+    window.dismissRotateOverlay = function () {
+        dismissed = true;
+        updateRotateOverlay();
+    };
+    window.addEventListener('resize', updateRotateOverlay);
+    // '이대로 할래요' 는 이번만 넘긴다. 기기를 돌리면 다시 판단해서 알려 준다.
+    // 돌린 직후에는 창 크기가 늦게 바뀌는 기기가 있어 한 박자 뒤에 한 번 더 맞춘다
+    function onRotate() {
+        dismissed = false;
+        updateRotateOverlay();
+        setTimeout(updateRotateOverlay, 300);
+    }
+    window.addEventListener('orientationchange', onRotate);
+    if (screen.orientation && screen.orientation.addEventListener) {
+        screen.orientation.addEventListener('change', onRotate);
+    }
+    updateRotateOverlay();
+})();
+</script>
+
+<!-- [추가] 배경 없는 캐릭터 그림(q.png)을 흰 카드 배경과 완전히 통일시키기 위한 처리.
+     원본 PNG의 가장자리에 아주 옅은 회색끼가 남아있어(반투명 처리 시 흔한 잔여물) 순백 카드
+     위에서 미세하게 도드라져 보이므로, 캔버스에 흰색을 먼저 채운 뒤 그 위에 그림을 그려
+     완전히 흰 배경과 합성한 이미지로 바꿔치기한다. -->
+<script>
+(function () {
+    function whitenImageBackground(imgEl) {
+        if (!imgEl) return;
+        function apply() {
+            try {
+                var w = imgEl.naturalWidth, h = imgEl.naturalHeight;
+                if (!w || !h) return;
+                var canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                var ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, w, h);
+                ctx.drawImage(imgEl, 0, 0);
+                imgEl.src = canvas.toDataURL('image/png');
+            } catch (e) { /* 캔버스 작업이 막히면 원본 그림을 그대로 둔다 */ }
+        }
+        if (imgEl.complete && imgEl.naturalWidth) apply();
+        else imgEl.addEventListener('load', apply, { once: true });
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+        whitenImageBackground(document.getElementById('exit-confirm-char-img'));
+    });
+})();
+</script>
+
+<!-- [추가] 이모지를 대체하는 아이콘 그림(tro.png)은 흰 사각형 배경이 그대로 찍혀 있어, 들어가는
+     자리의 배경색이 흰색이 아니면 도드라져 보인다. 가장자리(네 변)부터 흰색 영역을 채우기
+     방식(flood fill)으로 찾아 투명화하고, 배경과 맞닿은 경계는 알파를 서서히 낮춰 계단현상
+     없이 부드럽게 만든다. 이렇게 하면 아이콘이 어떤 배경 위에 있든 그 배경색이 그대로 비쳐
+     보여 "배경이 페이지와 동일해" 보이는 효과를 낸다. -->
+<script>
+window.removeWhiteBackground = function (imgEl, opts) {
+    if (!imgEl) return;
+    opts = opts || {};
+    var hardTol = opts.hardTol == null ? 12 : opts.hardTol;
+    var softTol = opts.softTol == null ? 60 : opts.softTol;
+    function apply() {
+        try {
+            var w = imgEl.naturalWidth, h = imgEl.naturalHeight;
+            if (!w || !h) return;
+            var canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(imgEl, 0, 0);
+            var imageData = ctx.getImageData(0, 0, w, h);
+            var data = imageData.data;
+            var n = w * h;
+            function whiteness(i) {
+                return Math.min(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
+            }
+            var bg = new Uint8Array(n);
+            var visited = new Uint8Array(n);
+            var stack = [];
+            for (var x = 0; x < w; x++) { stack.push(x); stack.push((h - 1) * w + x); }
+            for (var y = 0; y < h; y++) { stack.push(y * w); stack.push(y * w + w - 1); }
+            while (stack.length) {
+                var i = stack.pop();
+                if (visited[i]) continue;
+                visited[i] = 1;
+                if (whiteness(i) < 255 - hardTol) continue;
+                bg[i] = 1;
+                data[i * 4 + 3] = 0;
+                var px = i % w, py = (i / w) | 0;
+                if (px > 0) stack.push(i - 1);
+                if (px < w - 1) stack.push(i + 1);
+                if (py > 0) stack.push(i - w);
+                if (py < h - 1) stack.push(i + w);
+            }
+            for (var y2 = 0; y2 < h; y2++) {
+                for (var x2 = 0; x2 < w; x2++) {
+                    var i2 = y2 * w + x2;
+                    if (bg[i2]) continue;
+                    var wn = whiteness(i2);
+                    if (wn < 255 - softTol) continue;
+                    var touchesBg =
+                        (x2 > 0 && bg[i2 - 1]) || (x2 < w - 1 && bg[i2 + 1]) ||
+                        (y2 > 0 && bg[i2 - w]) || (y2 < h - 1 && bg[i2 + w]);
+                    if (!touchesBg) continue;
+                    var t = (wn - (255 - softTol)) / softTol;
+                    data[i2 * 4 + 3] = Math.round(data[i2 * 4 + 3] * (1 - t));
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+            imgEl.src = canvas.toDataURL('image/png');
+        } catch (e) { /* 캔버스 작업이 막히면 원본 그림을 그대로 둔다 */ }
+    }
+    if (imgEl.complete && imgEl.naturalWidth) apply();
+    else imgEl.addEventListener('load', apply, { once: true });
+};
+</script>
+
+<audio id="bgm-intro" src="fluxsound-cheerful-upbeat-kids-486631.mp3" loop preload="none"></audio>
+<audio id="bgm-game" src="viacheslavstarostin-game-gaming-video-game-music-471936.mp3" loop preload="none"></audio>
+<!-- [추가 10/2] 효과음 파일 (*_크게.wav: 브라우저는 볼륨 1을 넘길 수 없어 파일 자체를 키움.
+     소리가 깨지지 않도록 피크만 누르는 리미터를 최대 6dB까지 사용)
+     - 단어 찾음·힌트: 예전 합성음(3음 아르페지오)을 파일로 만든 것
+     - 라운드/미션 완료: Unjumble Game 정답.mp3·완료.mp3
+     - 오답: Unjumble Game 오답.mp3 / 타임오버: Ice Cream 게임 실패.mp3
+     - 마지막 10초 카운트다운: 카운트다운.mp3 (syncCountdown 참고) -->
+<audio id="sfx-word-found" src="단어찾음_크게.wav" preload="auto"></audio>
+<audio id="sfx-hint" src="힌트_크게.wav" preload="auto"></audio>
+<audio id="sfx-round-clear" src="정답_크게.wav" preload="auto"></audio>
+<audio id="sfx-mission-complete" src="완료_크게.wav" preload="auto"></audio>
+<audio id="sfx-wrong" src="오답_크게.wav" preload="auto"></audio>
+<audio id="sfx-gameover" src="실패_크게.wav" preload="auto"></audio>
+<audio id="sfx-countdown" src="카운트다운_크게.wav" preload="auto"></audio>
+
+<!-- [수정] 상단 네비게이션 - 전체 게임 공통, 위치 고정. pick the word 게임과 동일한 배치/스타일:
+     왼쪽: 홈/뒤로/앞으로, 오른쪽: How to Play/효과음/배경음/전체화면 -->
+<div id="nav-left-group">
+  <button type="button" id="nav-home-btn" class="glass-pill nav-icon-btn" onclick="navHomeGlobal()" title="처음으로">
+    <i class="fa-solid fa-house"></i>
+  </button>
+  <button type="button" id="nav-back-btn" class="glass-pill nav-icon-btn" onclick="navBackGlobal()" title="뒤로">
+    <i class="fa-solid fa-play" style="transform:scaleX(-1);"></i>
+  </button>
+  <button type="button" id="nav-forward-btn" class="glass-pill nav-icon-btn" onclick="navForwardGlobal()" title="앞으로">
+    <i class="fa-solid fa-play"></i>
+  </button>
+</div>
+
+<div id="nav-right-group">
+  <button type="button" id="nav-htp-btn" class="glass-pill nav-icon-btn" onclick="navHtpGlobal()" title="How to Play">
+    <i class="fa-regular fa-circle-question"></i>
+  </button>
+  <button type="button" id="sfx-toggle-btn" class="glass-pill nav-icon-btn" onclick="toggleSfx()" title="효과음 On/Off">
+    <i class="fa-solid fa-bell" id="sfx-toggle-icon"></i>
+  </button>
+  <button type="button" id="music-toggle-btn" class="glass-pill nav-icon-btn" onclick="toggleMusic()" title="배경음악 On/Off">
+    <i class="fa-solid fa-music" id="music-toggle-icon"></i>
+  </button>
+  <button type="button" id="fullscreen-toggle-btn" class="glass-pill nav-icon-btn" onclick="toggleFullscreen()" title="전체화면">
+    <i class="fa-solid fa-expand" id="fullscreen-toggle-icon"></i>
+  </button>
+</div>
+<script src="topnav.js" data-backdrop="0.jpg"></script>
+<script src="unit-data.js"></script>
+<script src="unit.js"></script>
+
+<!-- [수정] 인트로~소분류 선택 화면, 실제 게임(game-wrapper), 팝업(컨페티/모달)까지 전부
+     하나의 고정 크기 캔버스(#app-stage) 안에 넣어 같은 JS 배율(scale)로 함께 확대/축소되도록
+     통일 (pick the word 방식) -->
+<div id="app-stage">
+
+<!-- [추가] 라운드 클리어 축하 컨페티가 뿌려질 오버레이 (클릭 통과, 항상 최상단) -->
+<div id="confetti-container"></div>
+
+<!-- [추가] 팝업 바깥(배경) 클릭으로도 닫히도록: 클릭이 배경(overlay) 자신에서 시작된 경우에만 닫는다 -->
+<div id="modal-overlay" onclick="if (event.target === this) document.getElementById('modal-button').click();">
+  <div class="modal-content" id="modal-content">
+    <button type="button" class="glass-pill nav-icon-btn modal-close-x" onclick="document.getElementById('modal-button').click();" title="닫기" aria-label="닫기">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <h3 id="modal-title">Round Clear!</h3>
+    <img id="modal-success-img" src="su.png" alt="" style="width:170px;height:auto;object-fit:contain;margin:4px 0;display:none;">
+    <div id="modal-body" style="display: none;"></div>
+    <button class="next-btn" id="modal-button" onclick="goToNextRound()">Next Round!</button>
+  </div>
+</div>
+
+<div id="title-screen">
+  <div class="title-card">
+    <img src="0.jpg" alt="Title Background" class="full-title-bg">
+    <div class="unit-badge" data-unit-label hidden></div>
+    <div class="title-btn-group">
+      <button class="start-btn intro-how-btn" onclick="openHelpFromTitle()">How to Play</button>
+      <button class="start-btn" onclick="clickStartFromTitle()">Game Start</button>
+    </div>
+  </div>
+</div>
+<div id="intro-container" style="display: none;">
+  <div class="intro-card">
+    <button type="button" class="glass-pill nav-icon-btn intro-close-x" onclick="hideIntroHelpView()" title="닫기" aria-label="닫기">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <div class="intro-title">How to Play</div>
+
+    <div class="intro-box blue-box">
+      <h3>학습목표: 퍼즐 속에 숨겨진 영어 단어를 찾아보며 재미있게 어휘력과 집중력을 키워요!</h3>
+      <ul>
+        <li><b>Game Start</b>를 누르면 이번 단원의 단어로 게임이 시작됩니다.</li>
+        <li> 총 <b>4분</b>의 시간이 주어지며 게임이 시작되면 시간이 줄어듭니다.</li>
+        <li><b>Word Box</b>에 제시된 단어들을 알파벳 퍼즐 판에서 찾습니다.</li>
+        <li><b>가로, 세로, 대각선(왼쪽 위→오른쪽 아래)</b> 방향으로 숨겨진 단어를 찾아 철자를 순서대로 클릭합니다.</li>
+        <li>정답 시 <b>'+20초'</b>, 오답 시 <b>'-10초'</b>, 힌트 사용 시 <b>'-20초'</b></li>
+        <li>제한 시간 내에 각 라운드의 모든 단어를 찾아내면 다음 라운드로 진출합니다.</li>
+        <li>총 <b>3라운드</b>까지의 모든 단어를 완벽하게 찾아내면 <b>최종 미션 성공!</b></li>
+      </ul>
+    </div>
+
+    <div class="title-btn-group">
+      <button class="start-btn" onclick="hideIntroHelpView()">닫기</button>
+      <button class="start-btn" onclick="startGameFromIntroHelp()">Game Start</button>
+    </div>
+  </div>
+</div>
+
+<!-- 단원 목록 화면: 주소에 단원이 없을 때만 쓴다 (학년 → 단원, 단원을 누르면 그 단원 주소로 이동) -->
+<div id="category-container">
+  <div class="selection-card">
+    <h2 class="selection-heading">학년을 선택하세요.</h2>
+    <div class="grid-menu cols-4" id="category-menu-grid"></div>
+  </div>
+</div>
+
+<div id="subcategory-container">
+  <div class="selection-card">
+    <h2 class="selection-heading" id="subcategory-heading">단원을 선택하세요.</h2>
+    <div class="grid-menu cols-4" id="subcategory-menu-grid"></div>
+  </div>
+</div>
+
+<div id="game-wrapper">
+<div class="header-container" id="game-header">
+  <div class="challenge-title">Word Catch! Catch!</div>
+</div>
+
+<div class="main-game-container" id="game-body">
+<div class="left-panel">
+    <div class="word-panel-card">
+      <div class="word-container">
+        <div id="round-display" class="round-badge">
+          ROUND <span class="current-idx">1</span><span class="total-idx">/ 3</span>
+        </div>
+        <div class="btn-group">
+          <button class="buzzer-btn hint-btn" onclick="useHint()">Hint</button>
+          <div class="timer-circle-box timer-prominent">
+            <svg viewBox="0 0 100 100"> <circle class="circle-bg" cx="50" cy="50" r="40"></circle>
+              <circle id="timer-circle" class="circle-progress" cx="50" cy="50" r="40"></circle>
+            </svg>
+            <div id="timer-text">4:00</div>
+          </div>
+        </div>
+        <div class="word-box">
+          <h2> Word Box </h2>
+          <div id="word-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-wrapper">
+    <div id="grid"></div>
+  </div>
+</div>
+
+  <div id="message"></div>
+  <div id="center-feedback" class="center-feedback"></div>
+
+  <!-- [수정] 실제 게임 화면에서 홈/뒤로가기 버튼을 누르면 뜨는 종료 확인 팝업.
+       다른 팝업들과 달리 game-wrapper 밖(형제)에 있으면 게임 화면 위로 뜨지 않는
+       문제가 있어서, game-wrapper 안쪽 마지막 자식으로 옮겨 확실히 위에 오게 한다. -->
+  <div id="exit-confirm-overlay" onclick="if (event.target === this) closeExitConfirm();">
+    <div class="modal-content" style="max-width: 400px; gap: 16px;">
+      <h3 style="margin: 0; font-size: 1.7rem; color: #ff7043;">게임을 종료할까요?</h3>
+      <img id="exit-confirm-char-img" src="q.png" alt="" class="exit-confirm-img">
+      <p style="font-size: 1.05rem; font-weight: 700; color: #4a5568; margin: 0; text-align: center;">지금 나가면 풀던 문제가 사라져요.</p>
+      <div style="display: flex; gap: 12px; width: 100%;">
+        <button style="flex: 1; font-size: 1.05rem; font-weight: 800; color: #fff; background: linear-gradient(to bottom, #94a3b8, #64748b); border: none; border-radius: 16px; padding: 12px 0; cursor: pointer; box-shadow: 0 5px 0 #475569;" onclick="confirmExitProceed()">나가기</button>
+        <button style="flex: 1; font-size: 1.05rem; font-weight: 800; color: #fff; background: linear-gradient(to bottom, #ff9a9e, #fecfef); border: none; border-radius: 16px; padding: 12px 0; cursor: pointer; box-shadow: 0 5px 0 #e08588;" onclick="closeExitConfirm()">계속하기</button>
+      </div>
+    </div>
+  </div>
+</div> <!-- /#game-wrapper -->
+
+</div> <!-- /#app-stage -->
+
+  <script>
+    /* ================= BACKGROUND MUSIC ================= */
+    // Pick the Word와 동일하게, 타이틀/선택 화면과 실제 퍼즐 게임 화면에서 서로 다른 트랙을
+    // 재생한다(intro: fluxsound, game: viacheslavstarostin). 화면 전환 시 playBgm(key)로 전환.
+    const bgmTracks = {
+        intro: document.getElementById('bgm-intro'),
+        game: document.getElementById('bgm-game')
+    };
+    // [수정 10/2] 배경음악이 기본 볼륨(1.0)으로 재생돼 효과음이 묻혔다. 이 게임의 배경음악 파일은
+    // 다른 게임 것보다 6~16dB 커서 0.125로 낮춘다(실제 재생 크기 약 -26.4dB, Ice Cream 게임과 같은 수준).
+    // 인트로 곡(fluxsound)은 다른 게임들도 같은 파일을 0.18~1.0으로 틀고 있어 중간값인 Anagram과 같은 0.4로 둔다.
+    if (bgmTracks.game) bgmTracks.game.volume = 0.125;
+    if (bgmTracks.intro) bgmTracks.intro.volume = 0.4;
+    let currentBgmKey = 'intro';
+    // 음소거 상태는 화면 전환과 무관하게 하나의 값으로 관리한다. 여러 사람이 함께 쓰는
+    // 기기라 이전 사용자의 음소거 선택이 남지 않도록 localStorage에는 저장하지 않고,
+    // 새로 열 때마다 항상 기본값(켜짐)으로 시작한다.
+    let bgmMuted = false;
+    let audioUnlocked = false;
+    let bgmShouldPlay = false; // 현재 화면이 BGM 재생 대상 화면(타이틀/선택/게임 화면 전체)인지 여부
+
+    function syncBgmAudio(audio) {
+        if (!audio) return;
+        audio.muted = !audioUnlocked;
+    }
+
+    function updateMusicIcon() {
+        const icon = document.getElementById('music-toggle-icon');
+        if (icon) icon.className = bgmMuted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-music';
+    }
+
+    /* [추가] 효과음 On/Off - pick the word 게임과 동일하게 배경음악과 별개로 켜고 끔.
+       공용 기기에서 이전 사용자의 선택이 남지 않도록 localStorage에는 저장하지 않는다. */
+    let sfxMuted = false;
+    function updateSfxIcon() {
+        const icon = document.getElementById('sfx-toggle-icon');
+        if (icon) icon.className = sfxMuted ? 'fa-solid fa-bell-slash' : 'fa-solid fa-bell';
+    }
+    function toggleSfx() {
+        sfxMuted = !sfxMuted;
+        updateSfxIcon();
+    }
+    window.addEventListener('load', updateSfxIcon);
+
+    function applyBgmState() {
+        const audio = bgmTracks[currentBgmKey];
+        if (!audio) return;
+
+        // 다른 트랙은 항상 멈춰서 두 곡이 겹쳐 들리지 않게 한다
+        Object.keys(bgmTracks).forEach(k => {
+            if (k !== currentBgmKey && bgmTracks[k] && !bgmTracks[k].paused) bgmTracks[k].pause();
+        });
+
+        // 백그라운드(화면 꺼짐·다른 앱)에서는 틀지 않는다. 돌아오면 onPageVisibility 가 다시 부른다
+        if (!bgmShouldPlay || bgmMuted || document.hidden) {
+            audio.pause();
+            return;
+        }
+        syncBgmAudio(audio);
+        if (audio.paused) audio.play().catch(() => {});
+    }
+
+    // 화면 전환 시 호출. key: 'intro'(타이틀/How to Play/대분류/소분류 선택) 또는 'game'(실제 퍼즐 게임 화면)
+    function playBgm(key) {
+        if (key && key !== currentBgmKey) {
+            currentBgmKey = key;
+            bgmTracks[key].currentTime = 0;
+        }
+        bgmShouldPlay = true;
+        applyBgmState();
+    }
+
+    function toggleMusic() {
+        bgmMuted = !bgmMuted;
+        applyBgmState();
+        updateMusicIcon();
+    }
+
+    function initBgm() {
+        updateMusicIcon();
+        bgmShouldPlay = true; // 최초 진입 화면은 타이틀이므로 BGM 대상 화면
+        applyBgmState();
+        // [수정] 첫 상호작용에서 play()가 실패해도(네트워크 지연 등) 리스너를 바로 없애버리면
+        // 그 뒤로는 영영 재생을 재시도하지 않아 소리가 안 나는 상태로 굳어버렸다. 리스너를
+        // 제거하지 않고 매 상호작용마다 다시 시도해, 실제로 재생 중일 때만(이미 unpaused) 자연히
+        // 할 일이 없어지도록 한다.
+        const unlockAudio = () => {
+            audioUnlocked = true;
+            applyBgmState();
+        };
+        document.addEventListener('pointerdown', unlockAudio);
+        document.addEventListener('keydown', unlockAudio);
+        document.addEventListener('touchstart', unlockAudio);
+    }
+    window.addEventListener('load', initBgm);
+
+    /* ================= FULLSCREEN ================= */
+    // iOS Safari는 일반 요소의 전체화면 API 자체를 지원하지 않아 아래 폴백으로도 해결되지 않음.
+    // 구형 안드로이드 브라우저/인앱 웹뷰 대응용 webkit 접두사 폴백만 추가.
+    function getFullscreenElement() {
+        return document.fullscreenElement || document.webkitFullscreenElement;
+    }
+    function toggleFullscreen() {
+        const el = document.documentElement;
+        if (!getFullscreenElement()) {
+            const request = el.requestFullscreen || el.webkitRequestFullscreen;
+            if (request) {
+                const result = request.call(el);
+                if (result && result.catch) result.catch(() => {});
+            }
+        } else {
+            const exit = document.exitFullscreen || document.webkitExitFullscreen;
+            if (exit) exit.call(document);
+        }
+    }
+    function updateFullscreenIcon() {
+        const icon = document.getElementById('fullscreen-toggle-icon');
+        if (icon) icon.className = getFullscreenElement() ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+    }
+    document.addEventListener('fullscreenchange', updateFullscreenIcon);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+
+    /* ==========================================================================
+       단원 단어: unit-data.js(UNIT_DATA) → unit.js(UNIT)에서 지금 단원의 단어와 뜻을 가져온다.
+       공백이 있거나 10자가 넘는 단어는 10x10 격자에 넣을 수 없어 뺀다(엑셀에서 이미 걸렀지만 한 번 더).
+       ========================================================================== */
+    const UNIT_WORDS = UNIT.words.filter(word => !word.includes(" ") && word.length <= 10);
+
+    // 실제 게임에서 사용될 유동적 최종 단어 풀
+    let ALL_WORDS = []; 
+
+    // 단원 목록 화면에서 고른 학년
+    let selectedGrade = null;
+
+    let wordPool = [];
+
+    let gridData = [], currentSelection = [], foundWords = new Set(), foundCells = new Map();
+    let round = 1, currentWords = [], wordColors = [], rows = 10, cols = 10;
+    let pendingResultTimerId = null; // 라운드클리어·게임오버 지연 표시용, 화면 나갈 때 취소 대상
+    let pendingUiTimeoutIds = []; // 타이머 피드백·힌트·컨페티 등 화면 나갈 때 취소해야 할 setTimeout id 모음
+    let modalHistoryPushed = false; // 팝업이 열려있는 동안 뒤로가기로 닫을 수 있게 history를 쌓았는지 여부
+    // [추가] How to Play 팝업을 실제 게임 화면(game-body)이 아닌 타이틀/대분류/소분류 화면에서 열었을 때는
+    // 닫을 때 게임판(game-header/game-body)을 억지로 띄우거나 라운드 타이머를 되돌리면 안 되므로 기억해둔다.
+    let modalWasOverGameScreen = false;
+
+    // [버그 수정] 화면을 옮긴 뒤에도 setTimeout이 실행되던 문제 방지: 위 배열에 기록해뒀다가
+    // exitGameToHome에서 한꺼번에 취소한다.
+    function scheduleUiTimeout(fn, delay) {
+      const id = setTimeout(() => {
+        pendingUiTimeoutIds = pendingUiTimeoutIds.filter(x => x !== id);
+        fn();
+      }, delay);
+      pendingUiTimeoutIds.push(id);
+      return id;
+    }
+   
+const MAX_ROUND = 3;
+
+    let wordStartPositions = new Map();
+    let totalWordsFoundAll = 0, hintsUsedTotal = 0;
+    let totalElapsedMs = 0;
+    let usedWords = new Set();
+
+    const INITIAL_TIME = 240;
+    let timeLeft = INITIAL_TIME;
+    let timerInterval = null;
+    const CIRCUMFERENCE = 2 * Math.PI * 40;
+    let lastSecondInt = -1;
+    let isHelpOpen = false;
+    // [추가] 실제 게임 화면에서 홈/뒤로가기를 누르면 뜨는 종료 확인 팝업 상태
+    let exitConfirmOpen = false;
+    let pendingExitAction = null;
+    function requestExitConfirm(action) {
+      pendingExitAction = action;
+      exitConfirmOpen = true;
+      document.getElementById('exit-confirm-overlay').style.display = 'flex';
+    }
+    function closeExitConfirm() {
+      document.getElementById('exit-confirm-overlay').style.display = 'none';
+      exitConfirmOpen = false;
+      pendingExitAction = null;
+    }
+    function confirmExitProceed() {
+      document.getElementById('exit-confirm-overlay').style.display = 'none';
+      exitConfirmOpen = false;
+      const action = pendingExitAction;
+      pendingExitAction = null;
+      if (action) action();
+    }
+
+// 타이틀 Game Start: 단원 주소로 들어왔으면 바로 게임, 아니면 단원 목록(학년) 화면
+function clickStartFromTitle() {
+  document.getElementById("title-screen").style.display = "none";
+  if (UNIT.current) launchGameAfterSelection();
+  else showGradeMenu();
+}
+
+// How to Play 클릭 시 설명 화면 보여주기 (상단 고정 네비게이션에서 호출될 때는
+// 타이틀 화면뿐 아니라 대분류/소분류 화면에서도 호출될 수 있으므로, 어느 화면에서 왔는지 기억해둔다)
+// [수정] 같은 intro-container를 두 군데서 여는데, 여는 경로에 따라 하단 버튼 구성이 다르다:
+// - 타이틀 화면 자체의 "How to Play" 버튼으로 열면: 기존처럼 닫기/Game Start 버튼
+// - 상단 고정 네비게이션의 물음표(?) 버튼으로 열면: 우측 상단 X 버튼만 (다른 화면들의 도움말 팝업과 통일)
+let introReturnScreen = "title-screen";
+function openHelpFromTitle(viaNavIcon = false) {
+  introReturnScreen = getCurrentScreenId();
+  document.getElementById(introReturnScreen).style.display = "none";
+  document.getElementById("intro-container").style.display = "flex";
+  document.querySelector("#intro-container .intro-card").classList.toggle("via-nav-htp", viaNavIcon);
+}
+
+// How to Play 설명창에서 Close를 누르면 원래 있던 화면으로 복귀
+function hideIntroHelpView() {
+  document.getElementById("intro-container").style.display = "none";
+  document.getElementById(introReturnScreen).style.display = "flex";
+}
+
+// [추가] How to Play 화면에서 학습목표·게임방법 확인 후 바로 Game Start로 이동
+function startGameFromIntroHelp() {
+  document.getElementById("intro-container").style.display = "none";
+  if (UNIT.current) launchGameAfterSelection();
+  else showGradeMenu();
+}
+    // [수정 10/2] 효과음이 다른 게임에 비해 너무 작다는 피드백 반영.
+    // 모든 효과음을 파일(위 <audio> 참고)로 재생한다. 단어 찾음·힌트도 예전 합성음을 파일로 만들어 씀.
+    // 각 파일은 소리가 깨지지 않는 범위(리미터 최대 6dB)에서 최대한 키운 것(*_크게.wav).
+    const sfxFiles = {
+      correct: 'sfx-word-found', hint: 'sfx-hint',
+      clear: 'sfx-round-clear', complete: 'sfx-mission-complete',
+      wrong: 'sfx-wrong', gameover: 'sfx-gameover'
+    };
+    /* [수정 10/20] 아이패드(사파리·크롬)에서 효과음이 났다 안 났다 하던 문제.
+       아이패드는 <audio> 를 손가락으로 누른 그 순간에만 재생을 허락해서, 라운드 끝 소리처럼
+       잠시 뒤(setTimeout)에 나는 소리는 막히기 일쑤였고, 화면을 잠갔다 켜거나 다른 앱에
+       다녀오면 아예 안 나기도 했다. 그래서 효과음은 Web Audio 하나(sfxCtx)로 미리 풀어 둔
+       소리 데이터를 재생한다. 한 번 풀린 sfxCtx 는 언제 불러도 소리가 나고, 다녀와서 멈춰 있으면
+       다음 터치 때 다시 깨운다. Web Audio 를 못 쓰는 환경(파일을 직접 연 경우 등)에서는 예전처럼 <audio> 로 낸다 */
+    const SfxCtxClass = window.AudioContext || window.webkitAudioContext;
+    let sfxCtx = null;
+    const sfxBuffers = {};
+    // 아이폰 무음 스위치를 켜 둬도 효과음이 배경음악처럼 나오게 한다 (iOS 17 이상)
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    function wakeSfxCtx() {
+      if (!SfxCtxClass) return;
+      if (!sfxCtx) {
+        try { sfxCtx = new SfxCtxClass(); } catch (e) { return; }
+        loadSfxBuffers();
+      }
+      if (sfxCtx.state !== 'running' && !document.hidden) sfxCtx.resume().catch(() => {});
+    }
+    function loadSfxBuffers() {
+      Object.keys(sfxFiles).forEach(type => {
+        const el = document.getElementById(sfxFiles[type]);
+        if (!el || sfxBuffers[type]) return;
+        fetch(el.getAttribute('src'))
+          .then(r => { if (!r.ok) throw new Error(); return r.arrayBuffer(); })
+          .then(ab => new Promise((res, rej) => sfxCtx.decodeAudioData(ab, res, rej)))
+          .then(buf => { sfxBuffers[type] = buf; })
+          .catch(() => {});
+      });
+    }
+    ['pointerdown', 'touchstart', 'touchend', 'keydown'].forEach(t =>
+      document.addEventListener(t, wakeSfxCtx, true));
+    function playSound(type) {
+      if (sfxMuted || document.hidden) return;
+      const buf = sfxBuffers[type];
+      if (sfxCtx && buf) {
+        if (sfxCtx.state !== 'running') sfxCtx.resume().catch(() => {});
+        const src = sfxCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(sfxCtx.destination);
+        src.start(0);
+        return;
+      }
+      const a = document.getElementById(sfxFiles[type]);
+      if (!a) return;
+      try { a.volume = 1; a.currentTime = 0; a.play().catch(() => {}); } catch (e) {}
+    }
+
+    /* [추가 10/20] 화면을 끄거나 다른 앱으로 가면(백그라운드) 배경음악·카운트다운을 멈추고
+       남은 시간도 줄지 않게 한다(startTimer·syncCountdown 의 document.hidden 검사).
+       돌아오면 배경음악을 다시 틀고, 멈춰 있던 효과음도 깨운다 */
+    function onPageVisibility() {
+      if (document.hidden) {
+        Object.keys(bgmTracks).forEach(k => { if (bgmTracks[k]) bgmTracks[k].pause(); });
+        document.querySelectorAll('audio').forEach(a => { if (!a.paused) a.pause(); });
+        if (sfxCtx && sfxCtx.state === 'running') sfxCtx.suspend().catch(() => {});
+      } else {
+        applyBgmState();
+        wakeSfxCtx();
+      }
+    }
+    document.addEventListener('visibilitychange', onPageVisibility);
+    window.addEventListener('pagehide', () => {
+      Object.keys(bgmTracks).forEach(k => { if (bgmTracks[k]) bgmTracks[k].pause(); });
+    });
+    window.addEventListener('pageshow', () => { if (!document.hidden) applyBgmState(); });
+
+    // [추가 10/2] 마지막 카운트다운 효과음(카운트다운.mp3, 11초).
+    // 파일 구성: 약 1초 간격 째깍 소리 9번 + 8.85초 지점에 끝소리 1번.
+    // 끝소리가 남은 시간 0초에 맞춰 나도록, 남은 시간이 8.85초 아래로 내려가면 재생하고
+    // 재생 위치를 늘 (8.85 - 남은 시간)에 맞춘다. 그래서 정답(+20초)으로 시간이 늘면 멈추고,
+    // 오답·힌트(-10/-20초)로 갑자기 줄면 그 시점 위치로 건너뛴다.
+    // 도움말·나가기 확인 창으로 시계가 멈췄을 때, 라운드 클리어 등으로 타이머가 꺼졌을 때,
+    // 효과음을 껐을 때는 멈춘다. 타임오버(0초)가 되면 끝소리가 끝까지 울리도록 그대로 둔다.
+    const COUNTDOWN_END = 8.85;
+    function syncCountdown() {
+      const a = document.getElementById('sfx-countdown');
+      if (!a || timeLeft <= 0) return;
+      const running = timerInterval && !isHelpOpen && !exitConfirmOpen && !sfxMuted && !document.hidden && timeLeft < COUNTDOWN_END;
+      if (!running) {
+        if (!a.paused) a.pause();
+        return;
+      }
+      const want = COUNTDOWN_END - timeLeft;
+      if (Math.abs(a.currentTime - want) > 0.3) {
+        try { a.currentTime = want; } catch (e) {}
+      }
+      if (a.paused) a.play().catch(() => {});
+    }
+    setInterval(syncCountdown, 100);
+
+    function goBackFromCategory() {
+      document.getElementById("category-container").style.display = "none";
+      document.getElementById("title-screen").style.display = "flex";
+    }
+
+    function goBackFromSubcategory() {
+      document.getElementById("subcategory-container").style.display = "none";
+      showGradeMenu();
+    }
+
+    // [추가] 단원 목록 화면 공용 '처음으로' 버튼 - 어느 단계에서든 타이틀 화면으로 바로 이동
+    function goHomeFromSelection() {
+      document.getElementById("category-container").style.display = "none";
+      document.getElementById("subcategory-container").style.display = "none";
+      document.getElementById("title-screen").style.display = "flex";
+    }
+
+    // 학년 화면 '앞으로' 버튼 - 이미 골랐던 학년이 있으면 그 단원 화면으로 다시 이동
+    function forwardFromCategory() {
+      if (!selectedGrade) {
+        alert("먼저 학년을 선택해 주세요!");
+        return;
+      }
+      selectCategory(selectedGrade);
+    }
+
+    // 단원 목록 화면 1: 학년 버튼
+    function showGradeMenu() {
+      const grid = document.getElementById("category-menu-grid");
+      grid.innerHTML = "";
+      UNIT.grades().forEach(grade => {
+        const btn = document.createElement("button");
+        btn.className = "menu-box-btn";
+        btn.innerHTML = `${grade}학년<span>Grade ${grade} · ${UNIT.unitsOf(grade).length}개 단원</span>`;
+        btn.onclick = () => selectCategory(grade);
+        grid.appendChild(btn);
+      });
+      document.getElementById("category-container").style.display = "flex";
+    }
+
+    // 단원 목록 화면 2: 고른 학년의 단원 버튼 - 누르면 그 단원 주소로 이동
+    function selectCategory(grade) {
+      selectedGrade = grade;
+      document.getElementById("category-container").style.display = "none";
+      document.getElementById("subcategory-heading").textContent = `${grade}학년 단원을 선택하세요.`;
+
+      const subGrid = document.getElementById("subcategory-menu-grid");
+      subGrid.innerHTML = "";
+      UNIT.unitsOf(grade).forEach(u => {
+        const t = UNIT.splitTitle(u);
+        const btn = document.createElement("button");
+        btn.className = "menu-box-btn";
+        btn.innerHTML = `${t.lesson}<span>${t.name}</span>`;
+        btn.setAttribute("data-tooltip", u.words.map(w => w.en).join(", "));
+        btn.onclick = () => UNIT.go(u.key);
+        subGrid.appendChild(btn);
+      });
+
+      document.getElementById("subcategory-container").style.display = "flex";
+    }
+
+    // 이번 단원 단어로 게임 시작
+    function launchGameAfterSelection() {
+      if (!UNIT.current) { showGradeMenu(); return; }
+
+      ALL_WORDS = UNIT_WORDS.slice();
+
+      // UI 전환 후 오리지널 게임 실행 구조 그대로 연결
+      round = 1;
+      timeLeft = INITIAL_TIME;
+      totalWordsFoundAll = 0;
+      hintsUsedTotal = 0;
+      totalElapsedMs = 0;
+      usedWords.clear();
+      document.getElementById("title-screen").style.display = "none";
+      document.getElementById("intro-container").style.display = "none";
+      document.getElementById("game-wrapper").style.display = "flex";
+      document.getElementById("game-header").style.display = "flex";
+      document.getElementById("game-body").style.display = "flex";
+      playBgm('game');
+      resetRound();
+    }
+
+    // 게임 중 '처음으로'·'뒤로': 타이머 정지 후 타이틀 화면으로 이동
+    // (단원 버전은 게임 전에 고르는 화면이 없어서 뒤로가기도 타이틀로 간다)
+    function exitGameToHome() {
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      if (pendingResultTimerId) { clearTimeout(pendingResultTimerId); pendingResultTimerId = null; }
+      pendingUiTimeoutIds.forEach(id => clearTimeout(id));
+      pendingUiTimeoutIds = [];
+      closeModal();
+      document.getElementById("game-wrapper").style.display = "none";
+      document.getElementById("game-header").style.display = "none";
+      document.getElementById("game-body").style.display = "none";
+      document.getElementById("title-screen").style.display = "flex";
+      playBgm('intro');
+    }
+
+    // 지금 단원 이름을 타이틀 화면에 보여 준다
+    document.querySelectorAll('[data-unit-label]').forEach(el => {
+      el.textContent = UNIT.label();
+      el.hidden = !UNIT.current;
+    });
+
+    /* [추가] 상단 고정 네비게이션(홈/뒤로/앞으로/How to Play) 공용 디스패처
+       - 현재 어떤 화면이 보이고 있는지에 따라 알맞은 이동 함수로 연결한다 */
+    function getCurrentScreenId() {
+      const ids = ["title-screen", "intro-container", "category-container", "subcategory-container", "game-body"];
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el && el.style.display !== "none") return id;
+      }
+      return "title-screen";
+    }
+    // [추가] 팝업(모달)이 열려있는 동안엔 game-header/game-body가 함께 숨겨져서
+    // getCurrentScreenId()가 현재 화면을 못 찾고 엉뚱하게 title-screen으로 판단해버린다.
+    // 그래서 홈/뒤로/앞으로 버튼이 먹통이었음 - 팝업이 열려있으면 화면 전환 대신
+    // 팝업부터 처리하도록 네 함수 모두 맨 앞에서 우선 확인한다.
+    function isModalOpen() {
+      return document.getElementById("modal-overlay").style.display === "flex";
+    }
+    // 지금 열린 팝업이 '도움말(How to Play)'인지 - 도움말은 닫으면 원래 하던 게임을
+    // 그대로 이어가는 팝업이고, 라운드클리어/게임오버는 '결과' 팝업이라 성격이 다르다.
+    function isHelpModalOpen() {
+      return isModalOpen() && document.getElementById("modal-content").classList.contains("modal-help-style");
+    }
+    function navHomeGlobal() {
+      // [수정] 홈은 팝업 종류와 상관없이 항상 완전히 처음 화면으로 나가야 한다 - 단, 게임
+      // 화면 위에서 열린 팝업(도움말이든 라운드클리어/타임오버 같은 결과 팝업이든)이 떠 있는
+      // 상태에서 곧장 나가버리면 확인 없이 그 라운드 결과/풀던 문제가 사라지므로, 그때는 먼저
+      // 종료 확인창을 띄운다. 확인창은 결과 팝업보다 z-index가 높아 그 위에 뜨고, "계속하기"를
+      // 누르면 결과 팝업이 그대로 남아있는다(모달을 미리 닫지 않기 때문).
+      if (isModalOpen()) {
+        if (modalWasOverGameScreen) { requestExitConfirm(exitGameToHome); return; }
+        exitGameToHome();
+        return;
+      }
+      const screen = getCurrentScreenId();
+      if (screen === "title-screen") return;
+      if (screen === "intro-container") { hideIntroHelpView(); return; }
+      if (screen === "game-body") { requestExitConfirm(exitGameToHome); return; }
+      goHomeFromSelection();
+    }
+    function navBackGlobal() {
+      if (isModalOpen()) {
+        // 도움말 팝업은 닫아도 잃을 진행이 없으니 그냥 닫고 하던 게임을 이어간다.
+        // [수정] 라운드클리어/타임오버 같은 결과 팝업은 곧장 나가버리면
+        // 그 결과 화면을 잃으므로, 이것도 종료 확인창을 먼저 띄운다.
+        if (isHelpModalOpen()) { document.getElementById("modal-button").click(); return; }
+        requestExitConfirm(exitGameToHome);
+        return;
+      }
+      const screen = getCurrentScreenId();
+      switch (screen) {
+        case "intro-container": hideIntroHelpView(); break;
+        case "category-container": goBackFromCategory(); break;
+        case "subcategory-container": goBackFromSubcategory(); break;
+        case "game-body": requestExitConfirm(exitGameToHome); break; // 단원 버전: 게임 중 뒤로가기는 타이틀로
+        default: break; // title-screen: 더 갈 곳이 없음
+      }
+    }
+    function navForwardGlobal() {
+      if (isModalOpen()) { document.getElementById("modal-button").click(); return; }
+      const screen = getCurrentScreenId();
+      switch (screen) {
+        case "title-screen": clickStartFromTitle(); break;
+        case "intro-container": startGameFromIntroHelp(); break;
+        case "category-container": forwardFromCategory(); break;
+        default: break; // subcategory-container: 단원을 눌러야 이동 / game-body: 다음 단계 없음
+      }
+    }
+    // [수정] 상단 물음표(?)는 어느 화면에서 누르든 실제 게임 화면에서 누를 때와 동일한
+    // 팝업(openHelp의 간단한 목록형 팝업)을 보여준다. 타이틀 화면 자체의 큰 "How to Play"
+    // 버튼(openHelpFromTitle)은 기존 전체 화면 설명 그대로 유지한다.
+    function navHtpGlobal() {
+      // [버그 수정] 결과 팝업(라운드클리어/타임오버/미션컴플리트)이 떠 있을 때 ?를 누르면
+      // 도움말 대신 그 팝업의 기본 버튼(Next Round!/Try Again!/Play Again!)이 눌려버렸다.
+      // 도움말 팝업일 때만 "?로 닫기"를 허용하고, 결과 팝업 위에서는 아무 동작도 하지 않는다.
+      if (isModalOpen()) {
+        if (isHelpModalOpen()) { document.getElementById("modal-button").click(); }
+        return;
+      }
+      const screen = getCurrentScreenId();
+      if (screen === "intro-container") return; // 이미 How to Play 화면
+      openHelp();
+    }
+
+    /* ==========================================================================
+       [보존] 기존 게임 핵심 코어 엔진 기능적 측면 완벽 유지
+       ========================================================================== */
+    function resetRound() {
+      closeModal();
+      foundWords.clear();
+      foundCells.clear();
+      wordStartPositions.clear();
+      currentSelection = [];
+      isHelpOpen = false;
+     
+document.getElementById("round-display").innerHTML = `ROUND <span class="current-idx">${round}</span><span class="total-idx">/ ${MAX_ROUND}</span>`;
+     
+      const wordCount = 1 + (round * 2);
+      currentWords = pickRandomWords(wordCount);
+      wordColors = currentWords.map((_, i) => i % 5);
+     
+      rows = 10;
+      cols = 10;
+     
+      let success = false;
+      let regenAttempts = 0;
+      // [버그 수정] 특정 단어 조합(회문/부분단어 포함 등)에서는 중복 제거가 절대 성공하지
+      // 못해 무한 루프에 빠질 수 있었다. 일정 횟수 실패하면 단어 조합을 새로 뽑아 재시도한다.
+      while (!success) {
+        success = generateGrid();
+        if (!success) {
+          regenAttempts++;
+          if (regenAttempts >= 200) {
+            currentWords = pickRandomWords(wordCount);
+            wordColors = currentWords.map((_, i) => i % 5);
+            regenAttempts = 0;
+          }
+        }
+      }
+      renderGrid();
+      renderWordBox();
+     
+      if (!timerInterval) startTimer();
+    }
+
+    function startTimer() {
+      if(timerInterval) clearInterval(timerInterval);
+      updateTimerUI();
+      timerInterval = setInterval(() => {
+        // 화면을 끄거나 다른 앱에 가 있는 동안(document.hidden)에도 시간이 흐르지 않게 멈춘다
+        if (isHelpOpen || exitConfirmOpen || document.hidden) return;
+
+        timeLeft -= 0.1;
+        // [수정] '총 소요 시간'은 이 카운트다운과 같은 틱에서만 함께 늘어나는 하나의 시계로 통일한다.
+        // 정답/오답/힌트로 인한 +20초/-10초/-20초는 여기를 거치지 않으므로 소요 시간에 영향을 주지 않는다.
+        totalElapsedMs += 100;
+
+        const timerBox = document.querySelector(".timer-circle-box");
+        if (timeLeft < 10 && timeLeft > 0) {
+          timerBox.classList.add("timer-danger");
+          // [수정 10/2] 1초마다 내던 'tick' 합성음 대신 카운트다운.mp3를 재생한다(syncCountdown 참고)
+        } else {
+          timerBox.classList.remove("timer-danger");
+        }
+
+        if (timeLeft <= 0) {
+          timeLeft = 0;
+          timerBox.classList.remove("timer-danger");
+          clearInterval(timerInterval);
+          timerInterval = null;
+          updateTimerUI();
+          gameOver();
+        }
+        updateTimerUI();
+      }, 100);
+    }
+
+    function updateTimerUI() {
+      const circle = document.getElementById("timer-circle");
+      const text = document.getElementById("timer-text");
+      const offset = CIRCUMFERENCE - (Math.min(timeLeft, INITIAL_TIME) / INITIAL_TIME) * CIRCUMFERENCE;
+      circle.style.strokeDashoffset = Math.max(0, offset);
+
+      const minutes = Math.floor(Math.max(0, timeLeft) / 60);
+      const seconds = Math.floor(Math.max(0, timeLeft) % 60);
+      text.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
+
+    function showTimerFeedback(txt) {
+      const centerFb = document.getElementById("center-feedback");
+      centerFb.textContent = txt;
+     
+      if (txt.includes("+")) {
+        centerFb.style.color = "#2ecc71";
+      } else {
+        centerFb.style.color = "#ef5350";
+      }
+
+      centerFb.classList.add("show");
+      scheduleUiTimeout(() => {
+        centerFb.classList.remove("show");
+      }, 800);
+    }
+
+function getTotalPossibleWords() {
+  let total = 0;
+  for (let r = 1; r <= MAX_ROUND; r++) total += 1 + r * 2;
+  return total;
+}
+
+function formatElapsedTime() {
+  // [수정] 실제 흐른 벽시계 시간이 아니라, 화면 제한 시간과 같은 틱에서만 쌓인 totalElapsedMs를 쓴다.
+  // 이렇게 하면 How to Play/처음으로 확인창/라운드 클리어 창이 떠 있는 동안 두 시계가 함께 멈춘다.
+  const elapsedSec = Math.max(0, Math.round(totalElapsedMs / 1000));
+  const m = Math.floor(elapsedSec / 60);
+  const s = elapsedSec % 60;
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+// [추가] 최종 미션 성공(1.png, 기뻐하는 고양이) / 타임오버(2.png) 화면에 고양이 캐릭터로 연출을 더해준다.
+function renderResultStats(catImg = null) {
+  const totalPossible = getTotalPossibleWords();
+  const catHtml = catImg ? `<div class="result-cat"><img src="${catImg}" alt="고양이 캐릭터"></div>` : '';
+  return `
+    ${catHtml}
+    <div class="result-stats">
+      <div class="result-stat-tile">
+        <div class="result-stat-num">${formatElapsedTime()}</div>
+        <div class="result-stat-label">총 소요 시간</div>
+      </div>
+      <div class="result-stat-tile">
+        <div class="result-stat-num">${totalWordsFoundAll}/${totalPossible}</div>
+        <div class="result-stat-label">찾은 단어</div>
+      </div>
+      <div class="result-stat-tile">
+        <div class="result-stat-num">${hintsUsedTotal}회</div>
+        <div class="result-stat-label">힌트 사용</div>
+      </div>
+    </div>
+  `;
+}
+
+// [추가] 라운드 클리어(성공) 시 화면에 뿌려지는 축하 컨페티 효과.
+function spawnConfetti(count = 40) {
+  const container = document.getElementById('confetti-container');
+  if (!container) return;
+  const colors = ['#ff8a65', '#4fc3f7', '#aed581', '#ffd54f', '#ce93d8', '#ff6b9d'];
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = (Math.random() * 100) + '%'; /* 👈 #confetti-container(=#app-stage 너비) 기준 */
+    piece.style.background = colors[i % colors.length];
+    const duration = 1.6 + Math.random() * 1.4;
+    const delay = Math.random() * 0.35;
+    piece.style.animationDuration = duration + 's';
+    piece.style.animationDelay = delay + 's';
+    container.appendChild(piece);
+    scheduleUiTimeout(() => piece.remove(), (duration + delay) * 1000 + 300);
+  }
+}
+
+function showModal(title, isLastRound = false, type = "clear") {
+  const modalContent = document.getElementById("modal-content");
+  const modalButton = document.getElementById("modal-button");
+  const modalBody = document.getElementById("modal-body");
+
+  // [수정] 게임 결과 팝업(clear/gameover)은 항상 실제 게임 화면 위에서만 열리지만, How to Play
+  // 팝업은 이제 타이틀/대분류/소분류 화면에서도 같은 방식으로 열 수 있다. 게임 화면일 때만
+  // game-header/game-body를 숨기고, closeModal()에서도 그때만 다시 보이도록 기억해둔다.
+  modalWasOverGameScreen = getCurrentScreenId() === "game-body";
+  if (modalWasOverGameScreen) {
+    document.getElementById("game-header").style.display = "none";
+    document.getElementById("game-body").style.display = "none";
+  }
+
+  const modalTitleEl = document.getElementById("modal-title");
+  const hasTrophy = /🏆/.test(title);
+  modalTitleEl.textContent = title.replace(/\s*🏆\s*/g, '').trim();
+  if (hasTrophy) {
+    const trophyImg = document.createElement('img');
+    trophyImg.src = 'tro.png';
+    trophyImg.alt = '';
+    trophyImg.style.cssText = 'width:1em;height:1em;vertical-align:-0.15em;margin-left:10px;object-fit:contain;';
+    modalTitleEl.appendChild(trophyImg);
+    removeWhiteBackground(trophyImg);
+  }
+
+  modalContent.classList.toggle("modal-wide", type === "help");
+  modalContent.classList.toggle("modal-help-style", type === "help");
+  // [추가] 성공(라운드 클리어/미션 컴플리트)과 실패(타임오버) 팝업을 색상으로 뚜렷하게 구분
+  modalContent.classList.toggle("modal-success", type === "clear");
+  modalContent.classList.toggle("modal-fail", type === "gameover");
+  // [추가] 라운드를 클리어했을 때(다음 라운드든 마지막 라운드든) 그물로 알파벳을 건져올린
+  // su.png 삽화를 보여준다.
+  document.getElementById("modal-success-img").style.display = (type === "clear") ? "block" : "none";
+  if (type === "clear") spawnConfetti();
+
+  // [추가] 라운드 하나 클리어(다음 라운드로 이어짐)와 게임이 완전히 끝나는 순간(타임오버/
+  // 미션 컴플리트)을 구분: 게임이 끝날 때만 배경을 파스텔 톤으로, 팝업도 더 크게 보여준다
+  const isGameEnd = type === "gameover" || (type === "clear" && isLastRound);
+  document.getElementById("modal-overlay").classList.toggle("overlay-game-end", isGameEnd);
+  modalContent.classList.toggle("modal-big", isGameEnd);
+
+  modalBody.style.display = "none";
+  modalBody.innerHTML = "";
+
+  if (type === "help") {
+    modalBody.className = "";
+    modalBody.innerHTML = `
+      <div class="intro-box blue-box" style="width: 100%; box-sizing: border-box;">
+        <h3>학습목표: 퍼즐 속에 숨겨진 영어 단어를 찾아보며 재미있게 어휘력과 집중력을 키워요!</h3>
+        <ul>
+          <li><b>Game Start</b>를 누르면 이번 단원의 단어로 게임이 시작됩니다.</li>
+          <li> 총 <b>4분</b>의 시간이 주어지며 게임이 시작되면 시간이 줄어듭니다.</li>
+          <li><b>Word Box</b>에 제시된 단어들을 알파벳 퍼즐 판에서 찾습니다.</li>
+          <li><b>가로, 세로, 대각선(왼쪽 위→오른쪽 아래)</b> 방향으로 숨겨진 단어를 찾아 철자를 순서대로 클릭합니다.</li>
+          <li>정답 시 <b>'+20초'</b>, 오답 시 <b>'-10초'</b>, 힌트 사용 시 <b>'-20초'</b></li>
+          <li>제한 시간 내에 각 라운드의 모든 단어를 찾아내면 다음 라운드로 진출합니다.</li>
+          <li>총 <b>${MAX_ROUND}라운드</b>까지의 모든 단어를 완벽하게 찾아내면 <b>최종 미션 성공!</b></li>
+        </ul>
+      </div>
+    `;
+    modalBody.style.display = "block";
+    modalButton.textContent = "Close";
+    
+    modalButton.onclick = function() {
+      isHelpOpen = false;
+      const shouldResumeTimer = modalWasOverGameScreen;
+      closeModal();
+      if (shouldResumeTimer) startTimer();
+    };
+  }
+  else if (type === "gameover") {
+    modalBody.innerHTML = renderResultStats("2.png");
+    modalBody.style.display = "block";
+    modalButton.textContent = "Try Again!";
+    modalButton.onclick = function() {
+        round = 1;
+        timeLeft = INITIAL_TIME;
+        totalWordsFoundAll = 0;
+        hintsUsedTotal = 0;
+        totalElapsedMs = 0;
+        usedWords.clear();
+        resetRound();
+    };
+  }
+  else {
+    if (isLastRound) {
+      modalBody.innerHTML = renderResultStats("1.png");
+      modalBody.style.display = "block";
+      modalButton.textContent = "Play Again!";
+      modalButton.onclick = function() {
+          round = 1;
+          timeLeft = INITIAL_TIME;
+          totalWordsFoundAll = 0;
+          hintsUsedTotal = 0;
+          totalElapsedMs = 0;
+          usedWords.clear();
+          resetRound();
+      };
+    } else {
+      modalButton.textContent = "Next Round!";
+      modalButton.onclick = goToNextRound;
+    }
+  }
+
+  document.getElementById("modal-overlay").style.display = "flex";
+  // [추가] 팝업이 열려있는 동안 뒤로가기를 누르면 페이지를 벗어나는 대신 팝업만 닫히도록
+  // 기록을 하나 쌓아둔다 (closeModal에서 소비/정리).
+  history.pushState({ wcModalOpen: true }, "");
+  modalHistoryPushed = true;
+}
+
+    function closeModal() {
+      document.getElementById("modal-overlay").style.display = "none";
+      // [수정] 타이틀/대분류/소분류 화면에서 연 How to Play 팝업은 게임판을 가린 적이 없으므로
+      // 닫을 때도 game-header/game-body를 억지로 띄우지 않는다(showModal에서 실제로 숨겼을 때만 복원).
+      if (modalWasOverGameScreen) {
+        document.getElementById("game-header").style.display = "flex";
+        document.getElementById("game-body").style.display = "flex";
+      }
+      isHelpOpen = false; // [수정] 어떤 경로로 닫히든(홈/뒤로 등으로 강제 종료돼도) 힌트가 막히지 않도록 항상 초기화
+      if (modalHistoryPushed) {
+        modalHistoryPushed = false;
+        history.back();
+      }
+    }
+
+    function goToNextRound() {
+      if (round < MAX_ROUND) {
+        round++;
+        // 라운드별로 시간을 나누지 않고, 게임 시작 시 준 4분(+보너스)을 전체 라운드가 공유해서 이어 쓴다.
+        resetRound();
+    } else {
+        console.log("마지막 라운드입니다.");
+    }
+}
+
+    function gameOver() {
+      pendingResultTimerId = setTimeout(() => {
+        playSound('gameover');
+        showModal("Time Over! ", false, "gameover");
+      }, 100);
+    }
+
+    // 한 단어가 다른 단어를 포함하는 경우(예: week/weekend) 같은 라운드에 함께 나오면
+    // 그리드에서 두 단어가 겹쳐 보여 헷갈리므로 그런 조합은 피한다.
+    function wordsOverlap(a, b) {
+      const wa = a.toLowerCase().replace(/\s/g, '');
+      const wb = b.toLowerCase().replace(/\s/g, '');
+      if (wa === wb) return true;
+      return wa.includes(wb) || wb.includes(wa);
+    }
+
+    function pickRandomWords(count) {
+      const safeCount = Math.min(count, ALL_WORDS.length);
+
+      // 아직 다른 라운드에 나오지 않은 단어를 우선 후보로 삼아
+      // 라운드 간 단어가 최대한 겹치지 않게 하고, 부족할 때만 이미 나온 단어를 재사용한다.
+      const unused = ALL_WORDS.filter(w => !usedWords.has(w));
+      const used = ALL_WORDS.filter(w => usedWords.has(w));
+      const shuffle = arr => [...arr].sort(() => 0.5 - Math.random());
+      const candidates = [...shuffle(unused), ...shuffle(used)];
+
+      const picked = [];
+      for (const w of candidates) {
+        if (picked.length >= safeCount) break;
+        if (picked.some(p => wordsOverlap(p, w))) continue;
+        picked.push(w);
+      }
+      // 겹침 회피 탓에 개수가 부족하면(단어 풀이 아주 작은 경우) 남은 후보로 채운다.
+      if (picked.length < safeCount) {
+        for (const w of candidates) {
+          if (picked.length >= safeCount) break;
+          if (!picked.includes(w)) picked.push(w);
+        }
+      }
+
+      picked.forEach(w => usedWords.add(w));
+      return picked;
+    }
+
+    function generateGrid() {
+gridData = Array(rows).fill(null).map(() => Array(cols).fill(null));
+      const directions = [[0, 1], [1, 0], [1, 1]];
+      wordStartPositions.clear();
+
+      // 가로/세로/대각선 방향을 단어 수만큼 최대한 고르게 배정한 뒤 섞는다
+      // (완전 무작위 방식은 단어 수가 적은 라운드에서 한쪽 방향으로 쏠릴 수 있음)
+      const dirAssignment = currentWords.map((_, i) => directions[i % directions.length]);
+      for (let i = dirAssignment.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [dirAssignment[i], dirAssignment[j]] = [dirAssignment[j], dirAssignment[i]];
+      }
+
+      for (let idx = 0; idx < currentWords.length; idx++) {
+        const word = currentWords[idx];
+        let placed = false, attempts = 0;
+        const targetWord = word.toLowerCase();
+        const preferredDir = dirAssignment[idx];
+        while (!placed && attempts < 500) {
+          // 배정된 방향으로 먼저 시도하고, 자리가 없으면 다른 방향으로 대체
+          const [dr, dc] = attempts < 200 ? preferredDir : directions[Math.floor(Math.random() * directions.length)];
+          const r = Math.floor(Math.random() * rows), c = Math.floor(Math.random() * cols);
+          if (canPlace(targetWord, r, c, dr, dc)) {
+            for (let i = 0; i < targetWord.length; i++) { gridData[r + dr * i][c + dc * i] = targetWord[i]; }
+
+            wordStartPositions.set(word, { r, c, dr, dc });
+            placed = true;
+          }
+          attempts++;
+        }
+        if (!placed) return false;
+      }
+
+      // [버그 수정] 아래서 빈 칸을 무작위 글자로 채우면, 그 글자들이 우연히 또 다른 자리에
+      // 같은 정답 단어를 만들어낼 수 있다. 그러면 학생이 실제로 그 단어를 정방향으로 정확히
+      // 찾아도(정답 판정은 wordStartPositions에 저장된 "의도한 자리" 하나만 인정하므로) 오답
+      // 처리되는 문제가 생긴다. 이를 막기 위해 실제로 배치된 단어의 칸을 기록해 두고,
+      // 무작위 채우기 후 전체 격자를 재검사해서 의도치 않게 생긴 자리를 다시 뽑는다.
+      const placedCellKeys = new Set();
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (gridData[r][c] !== null) placedCellKeys.add(`${r},${c}`);
+        }
+      }
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            if (gridData[r][c] === null) {
+                gridData[r][c] = String.fromCharCode(97 + Math.floor(Math.random() * 26));
+            }
+        }
+    }
+
+      // [버그 수정] 정답으로 인정하는 방향(가로→, 세로↓, 대각선↘)만 검사해야 한다.
+      // 8방향을 전부 보면 eye/mom/dad/noon처럼 거꾸로 읽어도 같은 단어이거나
+      // subway↔bus, evening↔nine처럼 반대 방향에서 부분 단어가 되는 경우까지
+      // "중복"으로 오판해 절대 못 고치는 자리(단어가 심어진 칸)를 다시 뽑으려다
+      // generateGrid()가 항상 실패해 무한 루프에 빠졌다.
+      const scanDirs = directions;
+      const wordAt = (word, r, c, dr, dc) => {
+        for (let i = 0; i < word.length; i++) {
+          const rr = r + dr * i, cc = c + dc * i;
+          if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) return false;
+          if (gridData[rr][cc] !== word[i]) return false;
+        }
+        return true;
+      };
+      const findOccurrences = (word) => {
+        const res = [];
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            for (const [dr, dc] of scanDirs) {
+              if (wordAt(word, r, c, dr, dc)) res.push({ r, c, dr, dc });
+            }
+          }
+        }
+        return res;
+      };
+
+      const MAX_DEDUP_PASSES = 200;
+      for (let pass = 0; pass < MAX_DEDUP_PASSES; pass++) {
+        let hasDuplicate = false;
+        for (const word of currentWords) {
+          const targetWord = word.toLowerCase();
+          const intended = wordStartPositions.get(word);
+          const extras = findOccurrences(targetWord).filter(o =>
+            !(o.r === intended.r && o.c === intended.c && o.dr === intended.dr && o.dc === intended.dc)
+          );
+          for (const occ of extras) {
+            hasDuplicate = true;
+            let fixed = false;
+            for (let i = 0; i < targetWord.length; i++) {
+              const rr = occ.r + occ.dr * i, cc = occ.c + occ.dc * i;
+              if (placedCellKeys.has(`${rr},${cc}`)) continue;
+              // 채움용(무작위) 칸이므로 다른 글자로 다시 뽑아 우연한 겹침을 깬다.
+              const oldChar = gridData[rr][cc];
+              let newChar = oldChar;
+              while (newChar === oldChar) {
+                newChar = String.fromCharCode(97 + Math.floor(Math.random() * 26));
+              }
+              gridData[rr][cc] = newChar;
+              fixed = true;
+              break;
+            }
+            if (!fixed) return false; // 겹친 자리가 전부 실제 단어 칸이라 고칠 수 없음 - 격자를 통째로 다시 생성
+          }
+        }
+        if (!hasDuplicate) break;
+        if (pass === MAX_DEDUP_PASSES - 1) return false;
+      }
+
+    return true;
+}
+
+    function canPlace(word, r, c, dr, dc) {
+      for (let i = 0; i < word.length; i++) {
+        const rr = r + dr * i, cc = c + dc * i;
+        if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) return false;
+        if (gridData[rr][cc] !== null && gridData[rr][cc] !== word[i]) return false;
+      }
+      return true;
+    }
+
+    function renderGrid() {
+      const gridEl = document.getElementById("grid");
+      // [추가] 매번 격자를 통째로 다시 그리기 때문에, 키보드로 칸에 초점을 두고 있던 상태라면
+      // 다시 그린 뒤 같은 자리(r,c)로 초점을 복원해야 Tab을 처음부터 다시 안 해도 된다.
+      const prevFocused = document.activeElement;
+      const focusedCoords = (prevFocused && prevFocused.classList && prevFocused.classList.contains("cell"))
+        ? { r: Number(prevFocused.dataset.r), c: Number(prevFocused.dataset.c) }
+        : null;
+
+      gridEl.innerHTML = "";
+      gridEl.style.gridTemplateColumns = `repeat(${cols}, 56px)`;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          cell.tabIndex = 0;
+          cell.setAttribute("role", "button");
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+          const span = document.createElement("span");
+          span.textContent = gridData[r][c];
+          cell.appendChild(span);
+          cell.setAttribute("aria-label", gridData[r][c]);
+          const key = `${r},${c}`;
+          if (foundCells.has(key)) {
+            const colorIndex = foundCells.get(key);
+            cell.classList.add("found", `found-clr-${colorIndex % 5}`);
+          }
+          if (currentSelection.some(p => p.r === r && p.c === c)) {
+            cell.classList.add("temp");
+          }
+          cell.addEventListener("click", () => handleCellClick(r, c));
+          cell.addEventListener("keydown", (e) => handleCellKeydown(e, r, c));
+          gridEl.appendChild(cell);
+        }
+      }
+
+      if (focusedCoords) {
+        const idx = focusedCoords.r * cols + focusedCoords.c;
+        const target = gridEl.children[idx];
+        if (target) target.focus();
+      }
+    }
+
+    // [추가] 격자 칸 키보드 조작: Enter/Space로 선택(=클릭과 동일), 화살표로 인접 칸 이동
+    function handleCellKeydown(e, r, c) {
+      switch (e.key) {
+        case "Enter":
+        case " ":
+        case "Spacebar": // 구형 브라우저 호환
+          e.preventDefault();
+          handleCellClick(r, c);
+          break;
+        case "ArrowUp": e.preventDefault(); focusCell(r - 1, c); break;
+        case "ArrowDown": e.preventDefault(); focusCell(r + 1, c); break;
+        case "ArrowLeft": e.preventDefault(); focusCell(r, c - 1); break;
+        case "ArrowRight": e.preventDefault(); focusCell(r, c + 1); break;
+      }
+    }
+
+    function focusCell(r, c) {
+      if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+      const gridEl = document.getElementById("grid");
+      const target = gridEl.children[r * cols + c];
+      if (target) target.focus();
+    }
+
+    function renderWordBox() {
+      const listEl = document.getElementById("word-list");
+      listEl.innerHTML = "";
+      currentWords.forEach(word => {
+        const item = document.createElement("span");
+        item.className = "word-item";
+        if (foundWords.has(word)) {
+          item.classList.add("word-found");
+          const meaning = UNIT.meaning(word); // 단원 엑셀의 뜻
+          // 찾은 단어는 뜻을 같이 보여줘서, 스펠링만 맞히고 무슨 뜻인지 모른 채 넘어가지 않게 한다
+          item.innerHTML = meaning
+            ? `${word} <span class="word-meaning">${meaning}</span>`
+            : word;
+        } else {
+          item.textContent = word;
+        }
+        listEl.appendChild(item);
+      });
+    }
+
+    function handleCellClick(r, c) {
+  if (isHelpOpen) return;
+  const last = currentSelection[currentSelection.length - 1];
+  
+  if (!last) { 
+    currentSelection.push({r, c}); 
+    renderGrid(); 
+    return; 
+  }
+  
+  if (currentSelection.some(p => p.r === r && p.c === c)) {
+    currentSelection = [];
+    renderGrid();
+    return;
+  }
+  
+  const dr = r - last.r, dc = c - last.c;
+  const isAdjacent = Math.abs(dr) <= 1 && Math.abs(dc) <= 1 && (dr !== 0 || dc !== 0);
+  let isSameDirection = true;
+  
+  if (currentSelection.length >= 2) {
+    const prevDr = last.r - currentSelection[currentSelection.length - 2].r;
+    const prevDc = last.c - currentSelection[currentSelection.length - 2].c;
+    if (dr !== prevDr || dc !== prevDc) isSameDirection = false;
+  }
+  
+  if (isAdjacent && isSameDirection) {
+    currentSelection.push({r, c});
+    const selectedStr = currentSelection.map(p => gridData[p.r][p.c]).join("");
+    const hasPotentialMatch = currentWords.some(w => w.toLowerCase().startsWith(selectedStr));
+    
+    if (hasPotentialMatch) {
+      checkWord();
+    } else {
+      playSound('wrong');
+      timeLeft -= 10;
+      showTimerFeedback("-10초");
+      currentSelection = [];
+    }
+  } else {
+    playSound('wrong');
+    timeLeft -= 10;
+    showTimerFeedback("-10초");
+    currentSelection = [];
+  }
+  renderGrid();
+}
+
+function checkWord() {
+    const selectedStr = currentSelection.map(p => gridData[p.r][p.c]).join("");
+    const matchIndex = currentWords.findIndex(w => w.toLowerCase() === selectedStr);
+
+    if (matchIndex !== -1) {
+        const matchWord = currentWords[matchIndex];
+
+        // [버그 수정] 글자만 일치하면(예: 정답을 거꾸로 클릭해도) 정답 처리되던 문제 방지.
+        // 실제로 그 단어가 배치된 시작 칸에서부터 클릭을 시작한 경우(=정방향으로 읽은 경우)만
+        // 정답으로 인정하고, 그렇지 않으면(역순 클릭 등) 오답으로 처리한다.
+        const startPos = wordStartPositions.get(matchWord);
+        const clickedStart = currentSelection[0];
+        const isForwardRead = !!startPos && !!clickedStart &&
+            startPos.r === clickedStart.r && startPos.c === clickedStart.c;
+
+        if (!isForwardRead) {
+            playSound('wrong');
+            timeLeft -= 10;
+            showTimerFeedback("-10초");
+            currentSelection = [];
+            return;
+        }
+
+        if (!foundWords.has(matchWord)) {
+            playSound('correct');
+            foundWords.add(matchWord);
+            totalWordsFoundAll++;
+            timeLeft += 20;
+            showTimerFeedback("+20초");
+            const colorIndex = wordColors[matchIndex];
+            currentSelection.forEach(p => foundCells.set(`${p.r},${p.c}`, colorIndex));
+            
+            renderWordBox();
+            currentSelection = [];
+            
+            if (foundWords.size === currentWords.length) {
+                if (round >= MAX_ROUND) {
+                    pendingResultTimerId = setTimeout(() => {
+                        playSound('complete');
+                        showModal("Mission Complete! 🏆", true, "clear");
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }, 500);
+                } else {
+                    pendingResultTimerId = setTimeout(() => {
+                        playSound('clear');
+                        showModal("Round " + round + " Clear!", false, "clear");
+                        // [수정] 클리어 창이 떠 있는 동안 제한 시간이 계속 흘러 Time Over로 바뀌는 문제를
+                        // 막기 위해, 미션 컴플리트 때와 마찬가지로 창을 띄우는 즉시 시계를 멈춘다.
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }, 500);
+                }
+            }
+        }
+    }
+}
+    function getWordColorStr(index) { return ['#aed581', '#ff8a65', '#4fc3f7', '#ce93d8', '#ffd54f'][index % 5]; }
+   
+    function showMessage(txt, color = "#ff7043") {
+      const msgEl = document.getElementById("message");
+      msgEl.textContent = txt;
+      msgEl.style.color = color;
+      setTimeout(() => { if(msgEl.textContent === txt) msgEl.textContent = ""; }, 1500);
+    }
+
+function useHint() {
+    if (isHelpOpen) return;
+    
+    const remainingWords = currentWords.filter(w => !foundWords.has(w));
+    if (remainingWords.length === 0) return;
+
+    hintsUsedTotal++;
+    playSound('hint');
+    timeLeft -= 20;
+    showTimerFeedback("-20초");
+
+    document.querySelectorAll(".cell").forEach(cell => cell.classList.remove("hint-active"));
+
+    const targetWord = remainingWords[0];
+    const pos = wordStartPositions.get(targetWord);
+    if (pos) {
+        const cellIndex = pos.r * cols + pos.c;
+        const cells = document.querySelectorAll(".cell");
+        const cellEl = cells[cellIndex];
+
+        // [버그 수정] 힌트로 보여줄 칸이 다른 단어와 겹쳐서 이미 "찾음" 표시가 돼 있으면
+        // 여기서 조용히 건너뛰어서, -20초만 차감되고 실제 힌트는 안 보이는 문제가 있었다.
+        // hint-active는 애니메이션이라 found 칸 위에도 정상적으로 겹쳐 보이므로 조건 없이 표시한다.
+        if (cellEl) {
+            cellEl.classList.add("hint-active");
+        }
+    }
+
+    scheduleUiTimeout(() => {
+        document.querySelectorAll(".cell").forEach(cell => cell.classList.remove("hint-active"));
+    }, 5000);
+}
+
+// 공통 상단바가 [상단바 + 게임 카드]를 창 가운데 여백을 두고 맞춘다 (무대 1200x800)
+// 무대 안의 흰 카드가 무대를 꽉 채우므로 액자(흰 테두리·그림자)는 두르지 않는다
+function resizeGame() {
+  TopNav.fit(document.getElementById("app-stage"), 1200, 800, { bare: true });
+}
+
+window.addEventListener("resize", resizeGame);
+window.addEventListener("orientationchange", resizeGame);
+window.addEventListener("load", resizeGame);
+
+// [추가] 팝업이 열려있을 때 ESC로도 닫을 수 있도록 (modal-overlay 팝업 + How to Play 화면 둘 다)
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (document.getElementById("modal-overlay").style.display === "flex") {
+    document.getElementById("modal-button").click();
+    return;
+  }
+  if (document.getElementById("intro-container").style.display === "flex") {
+    hideIntroHelpView();
+  }
+});
+
+// [추가] 팝업이 열려있을 때 브라우저 뒤로가기를 누르면(showModal에서 pushState 해둔 기록을
+// 소비하게 됨) 페이지를 벗어나는 대신 팝업을 닫는다. modalHistoryPushed를 먼저 false로
+// 내려서 closeModal() 내부의 history.back() 이중 호출을 막는다.
+window.addEventListener("popstate", () => {
+  if (document.getElementById("modal-overlay").style.display === "flex") {
+    modalHistoryPushed = false;
+    document.getElementById("modal-button").click();
+  }
+});
+
+// [추가] 우클릭 시 브라우저 기본 컨텍스트 메뉴가 뜨지 않도록 (수업용 게임이라 오조작 방지)
+document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+function openHelp() {
+  isHelpOpen = true;
+  
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  
+  showModal("How to Play", false, "help");
+}
+  </script>
+</body>
+</html>

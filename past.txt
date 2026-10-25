@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Word Catch 300</title>
+  <style>
+    body {
+      font-family: 'Nanum Gothic', sans-serif;
+      text-align: center;
+      padding: 25px; 
+      margin: 0;
+      background-color: #f0faff;
+      color: #333;
+      overflow-x: hidden;
+    }
+
+    .header-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 19px; 
+      margin: 19px auto 31px; 
+    }
+
+    .challenge-title {
+      padding: 19px 50px; 
+      background: linear-gradient(45deg, #ff9a9e 0%, #fad0c4 25%, #fbc2eb 50%, #a1c4fd 75%, #c2e9fb 100%);
+      background-size: 200% auto;
+      animation: gradientMove 3s linear infinite;
+      color: white;
+      font-size: 2.75rem; 
+      font-weight: 900;
+      border-radius: 75px; 
+      box-shadow: 0 10px 0 #e08588, 0 19px 31px rgba(0, 0, 0, 0.1);
+      text-shadow: 2px 2px 6px rgba(0,0,0,0.15);
+      letter-spacing: 1.25px;
+      border: 5px solid white;
+    }
+
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    #round-display {
+      background-color: #ffd54f;
+      color: #795548;
+      padding: 12px 31px; 
+      font-size: 1.6rem; 
+      font-weight: bold;
+      border-radius: 31px;
+      box-shadow: 0 6px 0 #ffb300;
+      white-space: nowrap;
+      border: 4px solid white;
+    }
+
+    .timer-circle-box {
+      position: relative;
+      width: 88px; 
+      height: 88px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .timer-circle-box svg {
+      transform: rotate(-90deg);
+      width: 88px;
+      height: 88px;
+    }
+
+    .timer-circle-box circle {
+      fill: white;
+      stroke-width: 10; 
+      cx: 44;
+      cy: 44;
+      r: 37.5; 
+    }
+
+    .circle-bg { stroke: #eee; }
+    .circle-progress {
+      stroke: #ef5350;
+      stroke-dasharray: 235.6; 
+      stroke-dashoffset: 0;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.1s linear;
+      fill: none !important;
+    }
+
+    #timer-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-weight: bold;
+      font-size: 1.1rem; 
+      color: #333;
+    }
+
+    #timer-feedback {
+      position: absolute;
+      width: 125px;
+      top: 94px; 
+      left: 50%;
+      transform: translateX(-50%);
+      font-weight: 900;
+      font-size: 1.35rem; 
+      color: #ef5350;
+      opacity: 0;
+      transition: all 0.3s;
+      pointer-events: none;
+    }
+
+    .main-game-container {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 50px; 
+      margin-top: 25px;
+      max-width: 1500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .word-box {
+      width: 200px; 
+      background-color: #ffffff;
+      border: 5px dashed #ffab91;
+      border-radius: 31px;
+      padding: 25px;
+      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.05);
+    }
+
+    .word-box h2 { margin: 0 0 19px 0; font-size: 1.35rem; color: #ff7043; }
+    
+    .word-box .word-item {
+      display: block; 
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 25px;
+      font-size: 1.25rem; 
+      background-color: #fff9c4;
+      border: 4px solid #fff176;
+      font-weight: 900;
+      color: #555;
+    }
+
+    .word-box .word-found {
+      text-decoration: line-through;
+      color: #bbb;
+      border-color: #eee;
+      background-color: #fafafa;
+    }
+
+    #modal-overlay {
+      position: fixed;
+      top: 0; left: 0; 
+      width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.5); 
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 25px;
+      border: 10px solid #ff9a9e;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-sizing: border-box;
+      padding: 25px;
+    }
+
+    .modal-content h3 { color: #ff7043; font-size: 3.1rem; margin: 0 0 25px; font-weight: 900; }
+    
+    .next-btn {
+      background: linear-gradient(to bottom, #ff9a9e, #fecfef);
+      color: white;
+      border: none;
+      padding: 19px 50px;
+      font-size: 1.85rem;
+      font-weight: bold;
+      border-radius: 60px;
+      cursor: pointer;
+      box-shadow: 0 7.5px 0 #e08588;
+      transition: all 0.2s;
+    }
+
+    #grid {
+      display: inline-grid;
+      gap: 7.5px; 
+      background-color: #e1f5fe;
+      padding: 15px;
+      border-radius: 25px;
+      border: 6px solid #81d4fa;
+      box-shadow: 0 12.5px 0 #4fc3f7;
+    }
+
+    .cell {
+      width: 56px; 
+      height: 56px; 
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 15px;
+      user-select: none;
+      cursor: pointer;
+      background-color: #fff;
+      transition: transform 0.1s, background-color 0.2s;
+      box-shadow: inset 0 -4px 0 rgba(0,0,0,0.05);
+    }
+    .cell span { font-size: 1.6rem; font-weight: 800; color: #444; }
+    
+    .cell.temp { background-color: #80deea !important; transform: scale(1.1); color: white !important; z-index: 5; position: relative;}
+    
+    .cell.found { color: white; box-shadow: none; }
+    .cell.found-clr-0 { background-color: #aed581; } 
+    .cell.found-clr-1 { background-color: #ff8a65; } 
+    .cell.found-clr-2 { background-color: #4fc3f7; } 
+    .cell.found-clr-3 { background-color: #ce93d8; } 
+    .cell.found-clr-4 { background-color: #ffd54f; } 
+
+    #message { margin-top: 19px; height: 38px; font-size: 1.5rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <div class="header-container">
+    <div class="challenge-title">Word Catch 300</div>
+    <div id="round-display">Round 1</div>
+    <div class="timer-circle-box">
+      <svg>
+        <circle class="circle-bg"></circle>
+        <circle id="timer-circle" class="circle-progress"></circle>
+      </svg>
+      <div id="timer-text">5:00</div>
+      <div id="timer-feedback"></div>
+    </div>
+  </div>
+
+  <div class="main-game-container">
+    <div class="side-panel">
+      <div class="word-box">
+        <h2>🌟 Word Box 🌟</h2>
+        <div id="word-list"></div>
+      </div>
+    </div>
+
+    <div class="grid-wrapper">
+      <div id="grid"></div>
+    </div>
+  </div>
+
+  <div id="modal-overlay">
+    <div class="modal-content" id="modal-content">
+      <h3 id="modal-title">Round Clear!</h3>
+      <button class="next-btn" id="modal-button" onclick="goToNextRound()">Next Round!</button>
+    </div>
+  </div>
+
+  <div id="message"></div>
+
+  <script>
+    const ALL_WORDS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+    let gridData = [], currentSelection = [], foundWords = new Set(), foundCells = new Map(); 
+    let round = 1, currentWords = [], wordColors = [], rows = 0, cols = 0;
+    
+    const INITIAL_TIME = 300; 
+    let timeLeft = INITIAL_TIME;
+    let timerInterval = null;
+    const CIRCUMFERENCE = 2 * Math.PI * 37.5; 
+
+    function resetRound() {
+      closeModal();
+      foundWords.clear();
+      foundCells.clear();
+      currentSelection = [];
+      document.getElementById("round-display").textContent = `Round ${round}`;
+      
+      const wordCount = round + 2;
+      currentWords = pickRandomWords(wordCount);
+      wordColors = currentWords.map((_, i) => i % 5); 
+      
+      const maxWordLen = Math.max(...currentWords.map(w => w.length));
+      
+      const baseSize = maxWordLen + 2;
+      rows = baseSize + (round - 1);
+      cols = baseSize + (round - 1);
+      
+      let success = false;
+      while (!success) { success = generateGrid(); }
+      renderGrid();
+      renderWordBox();
+      
+      if (!timerInterval) startTimer();
+    }
+
+    function startTimer() {
+      if(timerInterval) clearInterval(timerInterval);
+      updateTimerUI();
+      timerInterval = setInterval(() => {
+        timeLeft -= 0.1;
+        if (timeLeft <= 0) {
+          timeLeft = 0;
+          clearInterval(timerInterval);
+          timerInterval = null;
+          updateTimerUI();
+          gameOver();
+        }
+        updateTimerUI();
+      }, 100);
+    }
+
+    function updateTimerUI() {
+      const circle = document.getElementById("timer-circle");
+      const text = document.getElementById("timer-text");
+      const offset = CIRCUMFERENCE - (Math.min(timeLeft, INITIAL_TIME) / INITIAL_TIME) * CIRCUMFERENCE;
+      circle.style.strokeDashoffset = Math.max(0, offset);
+
+      const minutes = Math.floor(Math.max(0, timeLeft) / 60);
+      const seconds = Math.floor(Math.max(0, timeLeft) % 60);
+      text.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
+
+    function showTimerFeedback(txt) {
+      const fb = document.getElementById("timer-feedback");
+      fb.textContent = txt;
+      fb.style.opacity = "1";
+      fb.style.transform = "translateX(-50%) translateY(-5px)";
+      setTimeout(() => {
+        fb.style.opacity = "0";
+        fb.style.transform = "translateX(-50%) translateY(0px)";
+      }, 1000);
+    }
+
+    function showModal(title, isLastRound = false) {
+      const grid = document.getElementById("grid");
+      const modalContent = document.getElementById("modal-content");
+      const modalButton = document.getElementById("modal-button");
+      
+      const gridWidth = grid.offsetWidth;
+      const gridHeight = grid.offsetHeight;
+      modalContent.style.width = (gridWidth + 40) + "px"; 
+      modalContent.style.height = (gridHeight + 40) + "px";
+      
+      document.getElementById("modal-title").textContent = title;
+      
+      if (isLastRound) {
+        modalButton.textContent = "Play Again!";
+        modalButton.onclick = function() {
+            round = 1;
+            timeLeft = INITIAL_TIME;
+            resetRound();
+        };
+      } else {
+        modalButton.textContent = "Next Round!";
+        modalButton.onclick = goToNextRound;
+      }
+      
+      document.getElementById("modal-overlay").style.display = "flex";
+    }
+
+    function closeModal() {
+      document.getElementById("modal-overlay").style.display = "none";
+    }
+
+    function goToNextRound() {
+      round++;
+      resetRound();
+    }
+
+    function gameOver() {
+      setTimeout(() => {
+        alert("시간이 종료되었습니다! 다시 도전해볼까요?");
+        round = 1;
+        timeLeft = INITIAL_TIME;
+        resetRound();
+      }, 100);
+    }
+
+    function pickRandomWords(count) {
+      const safeCount = Math.min(count, ALL_WORDS.length);
+      const shuffled = [...ALL_WORDS].sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, safeCount);
+    }
+
+    function generateGrid() {
+      gridData = Array(rows).fill(null).map(() => Array(cols).fill(null));
+      const directions = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+      for (let word of currentWords) {
+        let placed = false, attempts = 0;
+        const targetWord = word.toLowerCase();
+        while (!placed && attempts < 500) { 
+          const [dr, dc] = directions[Math.floor(Math.random() * directions.length)];
+          const r = Math.floor(Math.random() * rows), c = Math.floor(Math.random() * cols);
+          if (canPlace(targetWord, r, c, dr, dc)) {
+            for (let i = 0; i < targetWord.length; i++) { gridData[r + dr * i][c + dc * i] = targetWord[i]; }
+            placed = true;
+          }
+          attempts++;
+        }
+        if (!placed) return false; 
+      }
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (gridData[r][c] === null) gridData[r][c] = String.fromCharCode(97 + Math.floor(Math.random() * 26));
+        }
+      }
+      return true;
+    }
+
+    function canPlace(word, r, c, dr, dc) {
+      for (let i = 0; i < word.length; i++) {
+        const rr = r + dr * i, cc = c + dc * i;
+        if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) return false;
+        if (gridData[rr][cc] !== null && gridData[rr][cc] !== word[i]) return false;
+      }
+      return true;
+    }
+
+    function renderGrid() {
+      const gridEl = document.getElementById("grid");
+      gridEl.innerHTML = "";
+      gridEl.style.gridTemplateColumns = `repeat(${cols}, 56px)`;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          const span = document.createElement("span");
+          span.textContent = gridData[r][c];
+          cell.appendChild(span);
+          const key = `${r},${c}`;
+          if (foundCells.has(key)) {
+            const colorIndex = foundCells.get(key);
+            cell.classList.add("found", `found-clr-${colorIndex % 5}`);
+          }
+          if (currentSelection.some(p => p.r === r && p.c === c)) {
+            cell.classList.add("temp");
+          }
+          cell.addEventListener("click", () => handleCellClick(r, c));
+          gridEl.appendChild(cell);
+        }
+      }
+    }
+
+    function renderWordBox() {
+      const listEl = document.getElementById("word-list");
+      listEl.innerHTML = "";
+      currentWords.forEach(word => {
+        const item = document.createElement("span");
+        item.className = "word-item";
+        item.textContent = word;
+        if (foundWords.has(word)) item.classList.add("word-found");
+        listEl.appendChild(item);
+      });
+    }
+
+    function handleCellClick(r, c) {
+      const last = currentSelection[currentSelection.length - 1];
+      if (!last) { currentSelection.push({r, c}); renderGrid(); return; }
+      if (currentSelection.some(p => p.r === r && p.c === c)) { 
+        currentSelection = []; 
+        renderGrid(); 
+        return; 
+      }
+      const dr = r - last.r, dc = c - last.c;
+      const isAdjacent = Math.abs(dr) <= 1 && Math.abs(dc) <= 1 && (dr !== 0 || dc !== 0);
+      let isSameDirection = true;
+      if (currentSelection.length >= 2) {
+        const prevDr = last.r - currentSelection[currentSelection.length - 2].r;
+        const prevDc = last.c - currentSelection[currentSelection.length - 2].c;
+        if (dr !== prevDr || dc !== prevDc) isSameDirection = false;
+      }
+      if (isAdjacent && isSameDirection) { 
+        currentSelection.push({r, c}); 
+        checkWord(); 
+      } else { 
+        timeLeft -= 10;
+        showTimerFeedback("-10초");
+        showMessage("틀렸습니다!", "#ef5350");
+        currentSelection = []; 
+      }
+      renderGrid();
+    }
+
+    function checkWord() {
+      const selectedStr = currentSelection.map(p => gridData[p.r][p.c]).join("");
+      const reversedStr = selectedStr.split("").reverse().join(""); 
+      const matchIndex = currentWords.findIndex(w => {
+        const lowerW = w.toLowerCase();
+        return lowerW === selectedStr || lowerW === reversedStr;
+      });
+      if (matchIndex !== -1) {
+        const matchWord = currentWords[matchIndex];
+        if (!foundWords.has(matchWord)) {
+          foundWords.add(matchWord);
+          timeLeft += 20;
+          showTimerFeedback("+20초");
+          const colorIndex = wordColors[matchIndex];
+          currentSelection.forEach(p => foundCells.set(`${p.r},${p.c}`, colorIndex));
+          renderWordBox();
+          showMessage(`${matchWord} 정답!`, getWordColorStr(colorIndex));
+          currentSelection = []; 
+          if (foundWords.size === currentWords.length) {
+            if (round === 5) {
+                setTimeout(() => { 
+                    showModal("Mission Complete! 🏆", true); 
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }, 500);
+            } else {
+                setTimeout(() => { showModal("Round " + round + " Clear!", false); }, 500);
+            }
+          }
+        }
+      }
+    }
+
+    function getWordColorStr(index) { return ['#aed581', '#ff8a65', '#4fc3f7', '#ce93d8', '#ffd54f'][index % 5]; }
+    function showMessage(txt, color = "#ff7043") {
+      const msgEl = document.getElementById("message");
+      msgEl.textContent = txt;
+      msgEl.style.color = color;
+      setTimeout(() => { if(msgEl.textContent === txt) msgEl.textContent = ""; }, 1500);
+    }
+
+    resetRound();
+  </script>
+</body>
+</html>
