@@ -1780,7 +1780,16 @@ window.removeWhiteBackground = function (imgEl, opts) {
       pendingUiTimeoutIds.push(id);
       return id;
     }
-   
+    function cancelUiTimeout(id) {
+      if (id == null) return;
+      clearTimeout(id);
+      pendingUiTimeoutIds = pendingUiTimeoutIds.filter(x => x !== id);
+    }
+
+    // [버그 수정] 칸을 누를 때마다 renderGrid()가 격자를 통째로 다시 그려서 힌트 깜빡임이 지워졌다.
+    // 힌트 단어를 따로 기억해 두고 renderGrid()가 다시 그릴 때마다 표시를 되살린다.
+    let hintWord = null, hintTimerId = null, feedbackTimerId = null;
+
 const MAX_ROUND = 3;
 
     let wordStartPositions = new Map();
@@ -2143,7 +2152,10 @@ function startGameFromIntroHelp() {
       wordStartPositions.clear();
       currentSelection = [];
       isHelpOpen = false;
-     
+      cancelUiTimeout(hintTimerId);
+      hintWord = null;
+      hintTimerId = null;
+
 document.getElementById("round-display").innerHTML = `ROUND <span class="current-idx">${round}</span><span class="total-idx">/ ${MAX_ROUND}</span>`;
      
       const wordCount = 1 + (round * 2);
@@ -2228,7 +2240,9 @@ document.getElementById("round-display").innerHTML = `ROUND <span class="current
       }
 
       centerFb.classList.add("show");
-      scheduleUiTimeout(() => {
+      // [버그 수정] 정답(+20초) 표시가 떠 있을 때 힌트를 누르면, 앞선 표시의 타이머가 "-20초"를 곧바로 꺼버렸다.
+      cancelUiTimeout(feedbackTimerId);
+      feedbackTimerId = scheduleUiTimeout(() => {
         centerFb.classList.remove("show");
       }, 800);
     }
@@ -2379,16 +2393,9 @@ function showModal(title, isLastRound = false, type = "clear") {
     if (isLastRound) {
       modalBody.innerHTML = renderResultStats("1.png");
       modalBody.style.display = "block";
-      modalButton.textContent = "Play Again!";
-      modalButton.onclick = function() {
-          round = 1;
-          timeLeft = INITIAL_TIME;
-          totalWordsFoundAll = 0;
-          hintsUsedTotal = 0;
-          totalElapsedMs = 0;
-          usedWords.clear();
-          resetRound();
-      };
+      // [수정] 3라운드까지 모두 끝내면 라운드 1로 다시 돌아가지 않고 게임을 끝내 타이틀 화면으로 나간다.
+      modalButton.textContent = "Finish!";
+      modalButton.onclick = exitGameToHome;
     } else {
       modalButton.textContent = "Next Round!";
       modalButton.onclick = goToNextRound;
@@ -2625,6 +2632,10 @@ gridData = Array(rows).fill(null).map(() => Array(cols).fill(null));
           if (currentSelection.some(p => p.r === r && p.c === c)) {
             cell.classList.add("temp");
           }
+          const hintPos = hintWord && !foundWords.has(hintWord) ? wordStartPositions.get(hintWord) : null;
+          if (hintPos && hintPos.r === r && hintPos.c === c) {
+            cell.classList.add("hint-active");
+          }
           cell.addEventListener("click", () => handleCellClick(r, c));
           cell.addEventListener("keydown", (e) => handleCellKeydown(e, r, c));
           gridEl.appendChild(cell);
@@ -2806,24 +2817,17 @@ function useHint() {
     timeLeft -= 20;
     showTimerFeedback("-20초");
 
-    document.querySelectorAll(".cell").forEach(cell => cell.classList.remove("hint-active"));
+    // [버그 수정] 힌트로 보여줄 칸이 다른 단어와 겹쳐서 이미 "찾음" 표시가 돼 있어도
+    // hint-active는 애니메이션이라 found 칸 위에 정상적으로 겹쳐 보이므로 조건 없이 표시한다.
+    // 표시는 renderGrid()가 hintWord를 보고 그린다(칸을 눌러 격자를 다시 그려도 유지됨).
+    hintWord = remainingWords[0];
+    renderGrid();
 
-    const targetWord = remainingWords[0];
-    const pos = wordStartPositions.get(targetWord);
-    if (pos) {
-        const cellIndex = pos.r * cols + pos.c;
-        const cells = document.querySelectorAll(".cell");
-        const cellEl = cells[cellIndex];
-
-        // [버그 수정] 힌트로 보여줄 칸이 다른 단어와 겹쳐서 이미 "찾음" 표시가 돼 있으면
-        // 여기서 조용히 건너뛰어서, -20초만 차감되고 실제 힌트는 안 보이는 문제가 있었다.
-        // hint-active는 애니메이션이라 found 칸 위에도 정상적으로 겹쳐 보이므로 조건 없이 표시한다.
-        if (cellEl) {
-            cellEl.classList.add("hint-active");
-        }
-    }
-
-    scheduleUiTimeout(() => {
+    // 앞서 누른 힌트의 5초 타이머가 새 힌트를 일찍 지우지 않도록 이전 타이머는 취소한다.
+    cancelUiTimeout(hintTimerId);
+    hintTimerId = scheduleUiTimeout(() => {
+        hintWord = null;
+        hintTimerId = null;
         document.querySelectorAll(".cell").forEach(cell => cell.classList.remove("hint-active"));
     }, 5000);
 }
