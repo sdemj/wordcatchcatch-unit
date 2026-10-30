@@ -1875,36 +1875,57 @@ function startGameFromIntroHelp() {
     const sfxBuffers = {};
     // 아이폰 무음 스위치를 켜 둬도 효과음이 배경음악처럼 나오게 한다 (iOS 17 이상)
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    /* [수정 10/30] 아이패드에서 다른 앱에 다녀오면 효과음이 늦게 나거나 버벅이던 문제.
+       멈춰 둔(suspend) sfxCtx 를 다시 깨우면 아이패드에서는 소리가 밀려서 한꺼번에 나거나 끊겨 들렸다.
+       이제 백그라운드로 가면 sfxCtx 를 닫고(closeSfxCtx), 돌아와서 첫 터치 때 새로 만든다.
+       알림·제어 센터 등으로 'interrupted' 가 된 것도 버리고 새로 만든다. 풀어 둔 소리 데이터(sfxBuffers)는
+       새 sfxCtx 에서도 그대로 쓴다. 소리를 낼 때 아직 깨어나는 중이면 기다렸다가 내되,
+       0.3초 넘게 걸리면 늦은 소리는 버린다 */
+    function closeSfxCtx() {
+      if (!sfxCtx) return;
+      const c = sfxCtx; sfxCtx = null;
+      try { c.close().catch(() => {}); } catch (e) {}
+    }
     function wakeSfxCtx() {
-      if (!SfxCtxClass) return;
+      if (!SfxCtxClass || document.hidden) return;
+      if (sfxCtx && (sfxCtx.state === 'interrupted' || sfxCtx.state === 'closed')) closeSfxCtx();
       if (!sfxCtx) {
         try { sfxCtx = new SfxCtxClass(); } catch (e) { return; }
         loadSfxBuffers();
       }
-      if (sfxCtx.state !== 'running' && !document.hidden) sfxCtx.resume().catch(() => {});
+      if (sfxCtx.state !== 'running') sfxCtx.resume().catch(() => {});
     }
     function loadSfxBuffers() {
+      const ctx = sfxCtx;
       Object.keys(sfxFiles).forEach(type => {
         const el = document.getElementById(sfxFiles[type]);
         if (!el || sfxBuffers[type]) return;
         fetch(el.getAttribute('src'))
           .then(r => { if (!r.ok) throw new Error(); return r.arrayBuffer(); })
-          .then(ab => new Promise((res, rej) => sfxCtx.decodeAudioData(ab, res, rej)))
+          .then(ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
           .then(buf => { sfxBuffers[type] = buf; })
           .catch(() => {});
       });
     }
-    ['pointerdown', 'touchstart', 'touchend', 'keydown'].forEach(t =>
+    ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown'].forEach(t =>
       document.addEventListener(t, wakeSfxCtx, true));
     function playSound(type) {
       if (sfxMuted || document.hidden) return;
+      wakeSfxCtx();
       const buf = sfxBuffers[type];
-      if (sfxCtx && buf) {
-        if (sfxCtx.state !== 'running') sfxCtx.resume().catch(() => {});
-        const src = sfxCtx.createBufferSource();
-        src.buffer = buf;
-        src.connect(sfxCtx.destination);
-        src.start(0);
+      const c = sfxCtx;
+      if (c && buf) {
+        const start = () => {
+          const src = c.createBufferSource();
+          src.buffer = buf;
+          src.connect(c.destination);
+          src.start(0);
+        };
+        if (c.state === 'running') { start(); return; }
+        const asked = Date.now();
+        c.resume().then(() => {
+          if (sfxCtx === c && !document.hidden && Date.now() - asked < 300) start();
+        }).catch(() => {});
         return;
       }
       const a = document.getElementById(sfxFiles[type]);
@@ -1919,7 +1940,7 @@ function startGameFromIntroHelp() {
       if (document.hidden) {
         Object.keys(bgmTracks).forEach(k => { if (bgmTracks[k]) bgmTracks[k].pause(); });
         document.querySelectorAll('audio').forEach(a => { if (!a.paused) a.pause(); });
-        if (sfxCtx && sfxCtx.state === 'running') sfxCtx.suspend().catch(() => {});
+        closeSfxCtx();
       } else {
         applyBgmState();
         wakeSfxCtx();
@@ -1928,6 +1949,7 @@ function startGameFromIntroHelp() {
     document.addEventListener('visibilitychange', onPageVisibility);
     window.addEventListener('pagehide', () => {
       Object.keys(bgmTracks).forEach(k => { if (bgmTracks[k]) bgmTracks[k].pause(); });
+      closeSfxCtx();
     });
     window.addEventListener('pageshow', () => { if (!document.hidden) applyBgmState(); });
 
